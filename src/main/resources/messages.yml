@@ -465,6 +465,8 @@ factions:
     error: "&cAn error occurred while creating the faction. (Invalid name?)"
     already_have_faction: "&cYou already have a faction. Disband it or leave first."
     faction_exists: "&cThe faction already exists."
+    name_too_long: "&cFaction name cannot be longer than 8 characters."
+    invalid_characters: "&cFaction name can only contain ASCII characters (letters, numbers, symbols)."
   chest:
     success: "&aYou have opened the faction chest."
     not_in_faction: "&cYou are not in a faction."
