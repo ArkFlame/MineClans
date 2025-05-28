@@ -12,8 +12,8 @@ import com.arkflame.mineclans.providers.processors.ResultSetProcessor;
 
 public class FactionPlayerDAO {
     protected String CREATE_TABLES_QUERY = "CREATE TABLE IF NOT EXISTS mineclans_players ("
-            + "player_id TEXT NOT NULL PRIMARY KEY,"
-            + "faction_id TEXT,"
+            + "player_id CHAR(36) NOT NULL PRIMARY KEY,"
+            + "faction_id CHAR(36) NULL,"
             + "join_date TIMESTAMP,"
             + "last_active TIMESTAMP,"
             + "kills INT DEFAULT 0,"
