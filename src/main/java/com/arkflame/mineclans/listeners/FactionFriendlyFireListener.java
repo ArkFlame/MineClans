@@ -32,6 +32,7 @@ public class FactionFriendlyFireListener implements Listener {
 
         final Player attacker = (Player) damager;
         final Player defender = (Player) entity;
+        final EntityDamageByEntityEvent e = event;
         
         MineClans plugin = MineClans.getInstance();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -40,13 +41,14 @@ public class FactionFriendlyFireListener implements Listener {
             RelationType relation = MineClans.getInstance().getFactionManager().getEffectiveRelation(attackerFaction, entityFaction);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if ((relation == RelationType.ALLY || relation == RelationType.SAME_FACTION) && !attackerFaction.isFriendlyFire()) {
-                    event.setCancelled(true);
+                    e.setCancelled(true);
                     damager.sendMessage(MineClans.getInstance().getMessages().getText("factions.friendly_fire.cannot_attack"));
                 }
             });
         });
     }
 }
+
 
 
 
