@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.Bukkit;
 
 import com.arkflame.mineclans.MineClans;
 import com.arkflame.mineclans.enums.RelationType;
@@ -42,4 +43,5 @@ public class FactionFriendlyFireListener implements Listener {
         });
     }
 }
+
 
