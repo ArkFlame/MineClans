@@ -16,21 +16,31 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Monster;
 
 public class ClanEventListener implements Listener {
-    @EventHandler(ignoreCancelled = true)
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        MineClans.runAsync(() -> {
-            MineClans.getInstance().getAPI().addDeath(player);
-        });
+@EventHandler(ignoreCancelled = true)
+public void onPlayerDeath(PlayerDeathEvent event) {
+    Player player = event.getEntity();
+    MineClans plugin = MineClans.getInstance();
+
+    // Run async task to handle DB calls and heavy logic
+    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        // Add death count (DB operation)
+        plugin.getAPI().addDeath(player);
+
         Player killer = player.getKiller();
         if (killer != null) {
-            FactionPlayer factionPlayer = MineClans.getInstance().getAPI().getFactionPlayer(player);
-            ClanEvent currentEvent = MineClans.getInstance().getAPI().getCurrentEvent();
+            // Load faction player data (likely DB operation)
+            FactionPlayer factionPlayer = plugin.getAPI().getFactionPlayer(player);
+            ClanEvent currentEvent = plugin.getAPI().getCurrentEvent();
+
             if (currentEvent != null) {
-                currentEvent.onFactionKill(factionPlayer);
+                // Switch back to main thread to run Bukkit API code
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    currentEvent.onFactionKill(factionPlayer);
+                });
             }
         }
-    }
+    });
+}
 
     @EventHandler(ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
@@ -69,3 +79,4 @@ public class ClanEventListener implements Listener {
         }
     }
 }
+
