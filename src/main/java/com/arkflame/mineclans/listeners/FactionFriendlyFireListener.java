@@ -29,6 +29,10 @@ public class FactionFriendlyFireListener implements Listener {
         if (!(damager instanceof Player) || !(entity instanceof Player)) {
             return;
         }
+
+        final Player attacker = (Player) damager;
+        final Player defender = (Player) entity;
+        
         MineClans plugin = MineClans.getInstance();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Faction attackerFaction = plugin.getAPI().getFaction(((Player) damager).getUniqueId());
@@ -43,5 +47,6 @@ public class FactionFriendlyFireListener implements Listener {
         });
     }
 }
+
 
 
