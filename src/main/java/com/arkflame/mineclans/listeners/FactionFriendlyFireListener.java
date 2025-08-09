@@ -28,12 +28,18 @@ public class FactionFriendlyFireListener implements Listener {
         if (!(damager instanceof Player) || !(entity instanceof Player)) {
             return;
         }
-        Faction attackerFaction = MineClans.getInstance().getAPI().getFaction(((Player) damager).getUniqueId());
-        Faction entityFaction = MineClans.getInstance().getAPI().getFaction(((Player) entity).getUniqueId());
-        RelationType relation = MineClans.getInstance().getFactionManager().getEffectiveRelation(attackerFaction, entityFaction);
-        if ((relation == RelationType.ALLY || relation == RelationType.SAME_FACTION) && !attackerFaction.isFriendlyFire()) {
-            event.setCancelled(true);
-            damager.sendMessage(MineClans.getInstance().getMessages().getText("factions.friendly_fire.cannot_attack"));
-        }
+        MineClans plugin = MineClans.getInstance();
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Faction attackerFaction = plugin.getAPI().getFaction(((Player) damager).getUniqueId());
+            Faction entityFaction = plugin.getAPI().getFaction(((Player) entity).getUniqueId());
+            RelationType relation = MineClans.getInstance().getFactionManager().getEffectiveRelation(attackerFaction, entityFaction);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if ((relation == RelationType.ALLY || relation == RelationType.SAME_FACTION) && !attackerFaction.isFriendlyFire()) {
+                    event.setCancelled(true);
+                    damager.sendMessage(MineClans.getInstance().getMessages().getText("factions.friendly_fire.cannot_attack"));
+                }
+            });
+        });
     }
 }
+
