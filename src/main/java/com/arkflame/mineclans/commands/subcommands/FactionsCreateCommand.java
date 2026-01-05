@@ -16,6 +16,7 @@ public class FactionsCreateCommand {
     public static void onCommand(Player player, ModernArguments args) {
         ConfigWrapper messages = MineClans.getInstance().getMessages();
         MineClans mineClans = MineClans.getInstance();
+        String basePath = "factions.create."; 
         String rawName = args.getText(1);
         
         // 1. Check if null or empty first
