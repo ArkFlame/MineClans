@@ -40,8 +40,8 @@ public class FactionPlayerDAO {
     protected String DELETE_PLAYER_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE player_id = ?";
 
     // Queries to add new columns if they don't exist
-    protected String ADD_POWER_COLUMN_QUERY = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN IF NOT EXISTS power INT DEFAULT 1";
-    protected String ADD_MAX_POWER_COLUMN_QUERY = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN IF NOT EXISTS max_power INT DEFAULT 10";
+    protected String ADD_POWER_COLUMN_QUERY = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN power INT DEFAULT 1";
+    protected String ADD_MAX_POWER_COLUMN_QUERY = "ALTER TABLE " + TABLE_NAME + " ADD COLUMN max_power INT DEFAULT 10";
 
     protected String FIND_FK_QUERY = "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE " +
             "WHERE TABLE_NAME = '" + TABLE_NAME + "' AND COLUMN_NAME = 'faction_id' AND REFERENCED_TABLE_NAME IS NOT NULL";
@@ -82,17 +82,36 @@ public class FactionPlayerDAO {
             return;
 
         try {
-            // Check if the table exists and has all columns
-            mySQLProvider.executeUpdateQuery(ADD_POWER_COLUMN_QUERY);
-            mySQLProvider.executeUpdateQuery(ADD_MAX_POWER_COLUMN_QUERY);
+            // Añadir columna 'power' si no existe
+            if (!columnExists("power")) {
+                mySQLProvider.executeUpdateQuery(ADD_POWER_COLUMN_QUERY);
+            }
+            // Añadir columna 'max_power' si no existe
+            if (!columnExists("max_power")) {
+                mySQLProvider.executeUpdateQuery(ADD_MAX_POWER_COLUMN_QUERY);
+            }
             dropForeignKeyIfExists();
 
             schemaChecked = true;
         } catch (Exception e) {
-            // If there's an error, the table might not exist yet
+            // Si hay error, la tabla podría no existir aún
             createTable();
             schemaChecked = true;
         }
+    }
+
+    private boolean columnExists(String columnName) {
+        AtomicReference<Boolean> exists = new AtomicReference<>(false);
+        String query = "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_name = '" + TABLE_NAME + "' AND column_name = '" + columnName + "' AND table_schema = DATABASE()";
+        mySQLProvider.executeSelectQuery(query, new ResultSetProcessor() {
+            @Override
+            public void run(ResultSet resultSet) throws SQLException {
+                if (resultSet.next()) {
+                    exists.set(resultSet.getInt("count") > 0);
+                }
+            }
+        });
+        return exists.get();
     }
 
     public void insertOrUpdatePlayer(FactionPlayer player) {
