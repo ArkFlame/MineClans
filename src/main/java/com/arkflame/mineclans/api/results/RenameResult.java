@@ -26,6 +26,7 @@ public class RenameResult {
         NULL_NAME, 
         ERROR, 
         NO_PERMISSION,
-        COOLDOWN
+        COOLDOWN,
+        INVALID_NAME
     }
 }

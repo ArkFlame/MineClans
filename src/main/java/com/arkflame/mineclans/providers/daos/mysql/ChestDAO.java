@@ -14,14 +14,16 @@ import java.sql.SQLException;
 import java.util.UUID;
 
 public class ChestDAO {
-    protected String CREATE_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS mineclans_chests ("
+    private static final String TABLE_NAME = "mineclans_chests";
+    
+    protected String CREATE_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " ("
             + "faction_id CHAR(36) NOT NULL PRIMARY KEY, "
             + "chest_contents TEXT"
             + ")";
-    protected String INSERT_CHEST_QUERY = "INSERT INTO mineclans_chests (faction_id, chest_contents) VALUES (?, ?) "
+    protected String INSERT_CHEST_QUERY = "INSERT INTO " + TABLE_NAME + " (faction_id, chest_contents) VALUES (?, ?) "
             + "ON DUPLICATE KEY UPDATE chest_contents = VALUES(chest_contents)";
-    protected String SELECT_BY_FACTION_ID_QUERY = "SELECT chest_contents FROM mineclans_chests WHERE faction_id = ?";
-    protected String DELECT_CHEST_QUERY = "DELETE FROM mineclans_chests WHERE faction_id = ?";
+    protected String SELECT_BY_FACTION_ID_QUERY = "SELECT chest_contents FROM " + TABLE_NAME + " WHERE faction_id = ?";
+    protected String DELECT_CHEST_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE faction_id = ?";
     private MySQLProvider mySQLProvider;
 
     public ChestDAO(MySQLProvider mySQLProvider) {

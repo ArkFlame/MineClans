@@ -79,7 +79,9 @@ public class FactionsClaimCommand {
                 Faction faction = api.getFaction(player);
                 player.sendMessage(ChatColors.color(message
                         .replace("%needed%", NumberUtil.formatPower(faction.getClaimedLandCount() + 1))
-                        .replace("%faction_power%", NumberUtil.formatPower(faction.getPower()))));
+                        .replace("%faction_power%", NumberUtil.formatPower(faction.getPower()))
+                        .replace("%hard_limit%", NumberUtil.formatPower(faction.getClaimLimit()))
+                        ));
                 break;
             default:
                 player.sendMessage(ChatColors.color(message));

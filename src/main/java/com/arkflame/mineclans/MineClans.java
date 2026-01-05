@@ -24,6 +24,8 @@ import com.arkflame.mineclans.events.ClanEventManager;
 import com.arkflame.mineclans.events.ClanEventScheduler;
 import com.arkflame.mineclans.hooks.DynmapIntegration;
 import com.arkflame.mineclans.hooks.FactionsPlaceholder;
+import com.arkflame.mineclans.hooks.MineClansPlaceholder;
+import com.arkflame.mineclans.hooks.ProtocolLibHook;
 import com.arkflame.mineclans.hooks.WorldGuardReflectionUtil;
 import com.arkflame.mineclans.listeners.ChatListener;
 import com.arkflame.mineclans.listeners.ChunkProtectionListener;
@@ -36,6 +38,7 @@ import com.arkflame.mineclans.listeners.PlayerJoinListener;
 import com.arkflame.mineclans.listeners.PlayerKillListener;
 import com.arkflame.mineclans.listeners.PlayerMoveListener;
 import com.arkflame.mineclans.listeners.PlayerQuitListener;
+import com.arkflame.mineclans.listeners.PlayerTeleportListener;
 import com.arkflame.mineclans.managers.FactionBenefitsManager;
 import com.arkflame.mineclans.managers.FactionManager;
 import com.arkflame.mineclans.managers.FactionPlayerManager;
@@ -133,6 +136,8 @@ public class MineClans extends JavaPlugin {
     private FactionBenefitsManager benefitsManager;
     private FactionBenefitsTask benefitsTask;
 
+    private ProtocolLibHook protocolLibHook;
+
     public ConfigWrapper getCfg() {
         return config;
     }
@@ -222,12 +227,17 @@ public class MineClans extends JavaPlugin {
         return claimsMenuListener;
     }
 
+    public ProtocolLibHook getProtocolLibHook() {
+        return protocolLibHook;
+    }
+
     @Override
     public void onEnable() {
         Logger logger = getLogger();
         Server server = getServer();
         // Set static instance
         setInstance(this);
+        protocolLibHook = new ProtocolLibHook(this);
         runAsync(() -> {
             // Save default config
             config = new ConfigWrapper(this, "config.yml").saveDefault().load();
@@ -278,6 +288,7 @@ public class MineClans extends JavaPlugin {
             pluginManager.registerEvents(new PlayerKillListener(), this);
             pluginManager.registerEvents(new PlayerMoveListener(), this);
             pluginManager.registerEvents(new PlayerQuitListener(factionPlayerManager), this);
+            pluginManager.registerEvents(new PlayerTeleportListener(), this);
             pluginManager.registerEvents(new MenuListener(), this);
             pluginManager.registerEvents(dynmapIntegration, this);
             pluginManager.registerEvents(new FactionBenefitsListener(), this);
@@ -293,6 +304,7 @@ public class MineClans extends JavaPlugin {
             if (pluginManager.getPlugin("PlaceholderAPI") != null) {
                 runSync(() -> {
                     new FactionsPlaceholder(this).register();
+                    new MineClansPlaceholder(this).register();
                 });
             }
 
@@ -336,6 +348,8 @@ public class MineClans extends JavaPlugin {
         if (bungeeUtil != null) {
             bungeeUtil.shutdown();
         }
+        
+        protocolLibHook.cleanup();
 
         for (Player player : getServer().getOnlinePlayers()) {
             InventoryView view = player.getOpenInventory();

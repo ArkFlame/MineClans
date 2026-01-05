@@ -2,6 +2,7 @@ package com.arkflame.mineclans.listeners;
 
 import java.util.UUID;
 
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -23,7 +24,7 @@ public class PlayerJoinListener implements Listener {
         this.factionPlayerManager = factionPlayerManager;
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onPlayerJoin(final PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID id = player.getUniqueId();
@@ -36,6 +37,10 @@ public class PlayerJoinListener implements Listener {
             MineClans mineClans = MineClans.getInstance();
             Faction faction = mineClans.getAPI().getFaction(player);
             if (faction != null) {
+                Location rallyPoint = faction.getRallyPoint();
+                if (rallyPoint != null) {
+                    MineClans.getInstance().getProtocolLibHook().showFakeBeacon(player, rallyPoint);
+                }
                 FactionPlayer factionPlayer = factionPlayerManager.getOrLoad(id);
                 if (factionPlayer.updateMaxPower()) {
                     factionPlayerManager.save(factionPlayer);

@@ -18,11 +18,12 @@ public class FactionManager {
     // Cache for factions by ID
     private Map<UUID, Faction> factionCacheByID = new ConcurrentHashMap<>();
 
-    public void cache(Faction faction) {
+    public Faction cache(Faction faction) {
         if (faction != null) {
-            factionCacheByName.put(faction.getName(), faction);
-            factionCacheByID.put(faction.getId(), faction);
+            if (faction.getName() != null) factionCacheByName.put(faction.getName(), faction);
+            if (faction.getId() != null) factionCacheByID.put(faction.getId(), faction);
         }
+        return faction;
     }
 
     // Get faction from cache or load from database
@@ -38,9 +39,13 @@ public class FactionManager {
         }
 
         // If not in cache, load from database
-        faction = loadFactionFromDatabase(name);
-        cache(faction);
-        return faction;
+        faction = cache(new Faction(name)); // Early cache, anti-multiload
+        if (loadFactionFromDatabase(name, faction)) {
+            return cache(faction);
+        } else {
+            factionCacheByName.remove(name);
+            return null;
+        }
     }
 
     // Get faction from cache or load from database
@@ -55,17 +60,21 @@ public class FactionManager {
         }
 
         // If not in cache, load from database
-        faction = loadFactionFromDatabase(id);
-        cache(faction);
-        return faction;
+        faction = cache(new Faction(id)); // Early cache, anti-multiload
+        if (loadFactionFromDatabase(id, faction)) {
+            return cache(faction);
+        } else {
+            factionCacheByID.remove(id);
+            return null;
+        }
     }
 
-    public Faction loadFactionFromDatabase(String name) {
-        return MineClans.getInstance().getMySQLProvider().getFactionDAO().getFactionByName(name);
+    public boolean loadFactionFromDatabase(String name, Faction faction) {
+        return MineClans.getInstance().getMySQLProvider().getFactionDAO().getFactionByName(name, faction);
     }
 
-    public Faction loadFactionFromDatabase(UUID id) {
-        return MineClans.getInstance().getMySQLProvider().getFactionDAO().getFactionById(id);
+    public boolean loadFactionFromDatabase(UUID id, Faction faction) {
+        return MineClans.getInstance().getMySQLProvider().getFactionDAO().getFactionById(id, faction);
     }
 
     // Save a faction to the database
@@ -219,10 +228,10 @@ public class FactionManager {
         if (faction1 == faction2 || faction1.getId().equals(faction2.getId())) {
             return RelationType.SAME_FACTION; // Same faction
         }
-    
+
         RelationType relationFrom1To2 = faction1.getRelationType(faction2.getId());
         RelationType relationFrom2To1 = faction2.getRelationType(faction1.getId());
-    
+
         if (relationFrom1To2 == RelationType.ENEMY || relationFrom2To1 == RelationType.ENEMY) {
             return RelationType.ENEMY;
         } else if (relationFrom1To2 == RelationType.NEUTRAL && relationFrom2To1 == RelationType.NEUTRAL) {
@@ -230,7 +239,7 @@ public class FactionManager {
         } else if (relationFrom1To2 == RelationType.ALLY && relationFrom2To1 == RelationType.ALLY) {
             return RelationType.ALLY;
         }
-        
+
         return RelationType.NEUTRAL; // Default relation if no specific relation is found
     }
 
@@ -245,7 +254,7 @@ public class FactionManager {
         Faction faction2 = getFaction(factionName2);
         return getEffectiveRelation(faction1, faction2);
     }
-    
+
     public boolean deposit(UUID factionId, double amount) {
         Faction faction = getFaction(factionId);
         if (faction != null) {

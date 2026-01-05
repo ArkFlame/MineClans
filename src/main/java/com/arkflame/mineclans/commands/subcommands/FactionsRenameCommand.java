@@ -34,6 +34,9 @@ public class FactionsRenameCommand {
             case ERROR:
                 player.sendMessage(MineClans.getInstance().getMessages().getText(basePath + "error"));
                 break;
+            case INVALID_NAME:
+                player.sendMessage(MineClans.getInstance().getMessages().getText(basePath + "invalid_name"));
+                break;
             default:
                 break;
         }

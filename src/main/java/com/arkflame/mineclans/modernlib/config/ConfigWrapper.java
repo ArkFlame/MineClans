@@ -135,15 +135,16 @@ public class ConfigWrapper {
     }
 
     public String getText(String key) {
+        String text;
         if (colorTextMap.containsKey(key)) {
-            return colorTextMap.get(key);
+            text = colorTextMap.get(key);
         } else {
-            String text = ChatColors.color(getString(key));
-
+            text = getString(key);
+            text = text.replace("%prefix%", getString("prefix"));
+            text = ChatColors.color(text);
             colorTextMap.put(key, text);
-
-            return text;
         }
+        return text;
     }
 
     public String getText(String key, Object... placeholders) {

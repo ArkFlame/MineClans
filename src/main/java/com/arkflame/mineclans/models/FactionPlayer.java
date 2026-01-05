@@ -40,9 +40,19 @@ public class FactionPlayer {
     private boolean godMode = false;
     private boolean canReceiveDamage = true;
 
+    private boolean isMapViewer = true;
+
     public FactionPlayer(UUID playerId) {
         this.playerId = playerId;
         this.name = null;
+        this.factionId = null;
+        this.joinDate = null;
+        this.lastActive = null;
+    }
+
+    public FactionPlayer(String name) {
+        this.playerId = null;
+        this.name = name;
         this.factionId = null;
         this.joinDate = null;
         this.lastActive = null;
@@ -52,11 +62,26 @@ public class FactionPlayer {
         return playerId;
     }
 
+    public void setId(UUID playerId) {
+        this.playerId = playerId;
+    }
+
     public Faction getFaction() {
         if (factionId == null) {
             return null;
         }
-        return MineClans.getInstance().getFactionManager().getFaction(factionId);
+        Faction faction = MineClans.getInstance().getFactionManager().getFaction(factionId);
+        // Faction stopped existing
+        if (faction == null) {
+            factionId = null;
+            return null;
+        }
+        // No longer member
+        if (!faction.isMember(playerId)) {
+            setFaction(null);
+            return null;
+        }
+        return faction;
     }
 
     public void setFaction(Faction faction) {
@@ -64,11 +89,16 @@ public class FactionPlayer {
             this.factionId = null;
         } else {
             this.factionId = faction.getId();
+            // Make sure player is a member
+            if (!faction.isMember(playerId)) {
+                faction.addMember(playerId);
+            }
         }
     }
 
-    public UUID getFactionId() {
-        if (factionId != null && getFaction() == null) {
+    private UUID getFactionId() {
+        // Faction stopped existing
+        if (factionId != null && MineClans.getInstance().getFactionManager().getFaction(factionId) == null) {
             return factionId = null;
         }
         return factionId;
@@ -276,5 +306,13 @@ public class FactionPlayer {
 
     public boolean canReceiveDamage() {
         return canReceiveDamage;
+    }
+
+    public boolean isMapViewer() {
+        return isMapViewer;
+    }
+
+    public void setMapViewer(boolean isMapViewer) {
+        this.isMapViewer = isMapViewer;
     }
 }

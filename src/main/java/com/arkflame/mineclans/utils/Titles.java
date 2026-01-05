@@ -144,6 +144,10 @@ public class Titles {
             return;
         }
 
+        if ((title == null || title.isEmpty()) && (subtitle == null || subtitle.isEmpty())) {
+            return;
+        }
+
         if (sendTitlePacket(player, title, subtitle, fadeIn, stay, fadeOut)) {
             return;
         }

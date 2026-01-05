@@ -51,7 +51,16 @@ menus:
         name: "&eSpecific Amount"
         lore: "&7Enter specific amount to withdraw"
 
+prefix: "&a&lFactions&8 » "
 factions:
+  map:
+    enabled: "&aFaction map enabled."
+    disabled: "&cFaction map has been disabled!"
+  rally:
+    success: "%prefix%&b%player%&a is rallying at&b %x%&7,&b %z%&a."
+    no_faction: "%prefix%&cYou are not in a faction."
+    no_rank: "%prefix%&cYou need a higher rank to use rally."
+    in_cooldown: "%prefix%&cWait before rallying again."
   fly:
     not_in_faction: "&cYou must be in a faction to use fly!"
     no_permission: "&cYou don't have permission to use faction fly!"
@@ -112,7 +121,7 @@ factions:
   claim:
     success: "&aSuccessfully claimed territory at X:%x% Z:%z%"
     already_claimed: "&cThis chunk at X:%x% Z:%z% is already claimed by %faction%"
-    limit_reached: "&cYou need more power to claim. You need %needed% but have %faction_power%."
+    limit_reached: "&cYou need more power to claim. You need %needed% but have %faction_power%. Hard limit: %hard_limit%"
     no_adjacent: "&cYou need claims nearby to claim territory claimed by %faction%"
     not_raidable: "&cThe faction %faction% has enough power to keep this territory"
     not_in_faction: "&cYou must be in a faction to claim land!"
@@ -299,6 +308,7 @@ factions:
     success: "&aFaction name successfully changed."
     null_name: "&cYou have to enter a name."
     error: "&cThe name is not valid."
+    invalid_name: "&cInvalid name."
   list:
     header: "&6Faction List: &e(Page %current_page%/%total_pages%)"
     entry: "&e%faction% &7(%online%/%total%) [Score: %level%] [Power: %power%/%max_power%]"
@@ -382,7 +392,7 @@ factions:
     not_in_faction: "&cYou are not in a faction."
     error: "&cAn error occurred while toggling friendly fire."
     unknown_error: "&cAn unknown error occurred."
-    cannot_attack: "&cYou cannot attack faction members. If you want to allow friendly fire, type /f ff."
+    cannot_attack: "&cDisable friendly fire with '/f ff'."
   teleport:
     success: "&aTeleporting..."
   tpclaim:
@@ -415,6 +425,7 @@ factions:
     success: "&aFaction name successfully changed."
     null_name: "&cYou have to enter a name."
     error: "&cThe displayname is not valid."
+    invalid_name: "&cInvalid name."
   event:
     disabled: "&cEvents are disabled."
     no_permission_start: "&cYou do not have permission to start events."
@@ -467,6 +478,7 @@ factions:
     faction_exists: "&cThe faction already exists."
     name_too_long: "&cFaction name cannot be longer than 8 characters."
     invalid_characters: "&cFaction name can only contain ASCII characters (letters, numbers, symbols)."
+    invalid_name: "&cInvalid name."
   chest:
     success: "&aYou have opened the faction chest."
     not_in_faction: "&cYou are not in a faction."

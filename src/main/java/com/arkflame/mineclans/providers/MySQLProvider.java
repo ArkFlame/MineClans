@@ -20,15 +20,6 @@ import com.arkflame.mineclans.providers.daos.mysql.MemberDAO;
 import com.arkflame.mineclans.providers.daos.mysql.RanksDAO;
 import com.arkflame.mineclans.providers.daos.mysql.RelationsDAO;
 import com.arkflame.mineclans.providers.daos.mysql.ScoreDAO;
-import com.arkflame.mineclans.providers.daos.sqlite.ChestDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.ClaimedChunksDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.FactionDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.FactionPlayerDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.InvitedDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.MemberDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.RanksDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.RelationsDAOSQLite;
-import com.arkflame.mineclans.providers.daos.sqlite.ScoreDAOSQLite;
 import com.arkflame.mineclans.providers.processors.ResultSetProcessor;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -48,46 +39,21 @@ public class MySQLProvider {
     private ClaimedChunksDAO claimedChunksDAO;
 
     private boolean connected = false;
-    private boolean sqlite = false;
 
     public MySQLProvider(boolean enabled, String url, String username, String password) {
         Logger logger = MineClans.getInstance().getLogger();
         try {
-            if (!enabled || url == null || username == null || password == null) {
-                MineClans.getInstance().getLogger().severe("No database information provided.");
-                try {
-                    String sqliteFile = new File(MineClans.getInstance().getDataFolder(), "mineclans.db")
-                            .getAbsolutePath();
-                    url = "jdbc:sqlite:" + sqliteFile;
-                    sqlite = true;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else {
-                MineClans.getInstance().getLogger().info("Using MySQL database for factions.");
-            }
+            MineClans.getInstance().getLogger().info("Using MySQL database for factions.");
 
-            if (sqlite) {
-                chestDAO = new ChestDAOSQLite(this);
-                factionDAO = new FactionDAOSQLite(this);
-                factionPlayerDAO = new FactionPlayerDAOSQLite(this);
-                invitedDAO = new InvitedDAOSQLite(this);
-                memberDAO = new MemberDAOSQLite(this);
-                ranksDAO = new RanksDAOSQLite(this);
-                relationsDAO = new RelationsDAOSQLite(this);
-                scoreDAO = new ScoreDAOSQLite(this);
-                claimedChunksDAO = new ClaimedChunksDAOSQLite(this);
-            } else {
-                chestDAO = new ChestDAO(this);
-                factionDAO = new FactionDAO(this);
-                factionPlayerDAO = new FactionPlayerDAO(this);
-                invitedDAO = new InvitedDAO(this);
-                memberDAO = new MemberDAO(this);
-                ranksDAO = new RanksDAO(this);
-                relationsDAO = new RelationsDAO(this);
-                scoreDAO = new ScoreDAO(this);
-                claimedChunksDAO = new ClaimedChunksDAO(this);
-            }
+            chestDAO = new ChestDAO(this);
+            factionDAO = new FactionDAO(this);
+            factionPlayerDAO = new FactionPlayerDAO(this);
+            invitedDAO = new InvitedDAO(this);
+            memberDAO = new MemberDAO(this);
+            ranksDAO = new RanksDAO(this);
+            relationsDAO = new RelationsDAO(this);
+            scoreDAO = new ScoreDAO(this);
+            claimedChunksDAO = new ClaimedChunksDAO(this);
 
             // Generate hikari config
             generateHikariConfig(url, username, password);
@@ -103,7 +69,6 @@ public class MySQLProvider {
                 logger.severe("MineClans is unable to connect to the database.");
                 logger.severe("To fix this, please configure the database settings in the 'config.yml' file.");
                 logger.severe("You need a MySQL database for the plugin to work properly.");
-                logger.severe("You can also set MySQL to false in the 'config.yml' file to use SQLite.");
                 logger.severe("=============== DATABASE CONNECTION ERROR ================");
                 Bukkit.getPluginManager().disablePlugin(MineClans.getInstance());
                 return;
@@ -192,7 +157,8 @@ public class MySQLProvider {
 
     public void executeUpdateQuery(String query, Object... params) {
         if (Bukkit.isPrimaryThread()) {
-            MineClans.getInstance().getLogger().severe("WARNING: This method should not be called from the main thread.");
+            MineClans.getInstance().getLogger()
+                    .severe("WARNING: This method should not be called from the main thread.");
             new Exception().printStackTrace();
         }
         if (dataSource == null) {
@@ -213,7 +179,8 @@ public class MySQLProvider {
 
     public void executeSelectQuery(String query, ResultSetProcessor task, Object... params) {
         if (Bukkit.isPrimaryThread()) {
-            MineClans.getInstance().getLogger().severe("WARNING: This method should not be called from the main thread.");
+            MineClans.getInstance().getLogger()
+                    .severe("WARNING: This method should not be called from the main thread.");
             new Exception().printStackTrace();
         }
         if (dataSource == null) {

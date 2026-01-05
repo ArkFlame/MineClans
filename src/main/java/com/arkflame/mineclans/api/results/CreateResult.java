@@ -26,6 +26,6 @@ public class CreateResult {
         SUCCESS,
         NULL_NAME,
         FACTION_EXISTS,
-        ALREADY_HAVE_FACTION, ERROR,
+        ALREADY_HAVE_FACTION, ERROR, INVALID_NAME,
     }
 }

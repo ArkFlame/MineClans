@@ -11,6 +11,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -33,7 +34,7 @@ import net.md_5.bungee.api.ChatColor;
 
 public class Faction implements InventoryHolder {
     // The ID
-    private final UUID id;
+    private UUID id;
 
     // Members
     private Collection<UUID> members = ConcurrentHashMap.newKeySet();
@@ -104,12 +105,32 @@ public class Faction implements InventoryHolder {
     private long lastRename = 0; // Time of the last rename in milliseconds
     private static final long RENAME_COOLDOWN = 60 * 1000; // Cooldown duration in milliseconds (e.g., 1 minute)
 
-    // Constructor
+    private long lastRally = 0; // Time of the last rally in milliseconds
+    private static final long RALLY_COOLDOWN = 5 * 1000; // Cooldown duration in milliseconds (e.g., 1 minute)
+    private Location rally = null;
+
+    public Faction(String name) {
+        this.name = name.toLowerCase();
+        this.displayName = name;
+    }
+
+    public Faction(UUID id) {
+        this.id = id;
+    }
+
     public Faction(UUID id, UUID owner, String name, String displayName) {
         this.id = id;
         this.owner = owner;
         this.name = name.toLowerCase();
         this.displayName = displayName;
+    }
+
+    public Faction setup(UUID id, UUID owner, String name, String displayName) {
+        this.id = id;
+        this.owner = owner;
+        this.name = name.toLowerCase();
+        this.displayName = displayName;
+        return this;
     }
 
     public Collection<UUID> getMembers() {
@@ -145,6 +166,9 @@ public class Faction implements InventoryHolder {
     }
 
     public String getDisplayName() {
+        if (displayName == null) {
+            return "Loading";
+        }
         return displayName;
     }
 
@@ -161,6 +185,9 @@ public class Faction implements InventoryHolder {
     }
 
     public String getName() {
+        if (name == null) {
+            return "Loading";
+        }
         return name.toLowerCase();
     }
 
@@ -246,6 +273,11 @@ public class Faction implements InventoryHolder {
 
     public void addMember(UUID member) {
         this.members.add(member);
+        // Make sure member is on faction
+        FactionPlayer factionPlayer = MineClans.getInstance().getFactionPlayerManager().getOrLoad(member);
+        if (factionPlayer.getFaction() != this) {
+            factionPlayer.setFaction(this);
+        }
         updateScore();
         updatePower();
     }
@@ -540,6 +572,10 @@ public class Faction implements InventoryHolder {
         return power;
     }
 
+    public int getClaimLimit() {
+        return Math.min(40, power);
+    }
+
     public void updatePower() {
         power = 0;
         for (UUID uuid : getMembers()) {
@@ -562,7 +598,7 @@ public class Faction implements InventoryHolder {
     }
 
     public boolean canBeRaided() {
-        return getClaimedLandCount() > getPower();
+        return getPower() < 0;
     }
 
     public int getClaimedLandCount() {
@@ -575,5 +611,28 @@ public class Faction implements InventoryHolder {
 
     public boolean isFocusedFaction(UUID id2) {
         return getFocusedFaction() != null && getFocusedFaction().equals(id2);
+    }
+
+    public boolean hasRallyCooldown() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRally >= RALLY_COOLDOWN) {
+            return false;
+        }
+        return true;
+    }
+
+    public void setRally(Location location) {
+        this.rally = location;
+        this.lastRally = System.currentTimeMillis();
+        for (UUID uuid : getOnlineMembers()) {
+            Player otherPlayer = Bukkit.getPlayer(uuid);
+            if (otherPlayer != null && otherPlayer.isOnline()) {
+                MineClans.getInstance().getProtocolLibHook().showFakeBeacon(otherPlayer, location);
+            }
+        }
+    }
+
+    public Location getRallyPoint() {
+        return rally;
     }
 }

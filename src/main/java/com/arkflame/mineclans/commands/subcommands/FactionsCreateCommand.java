@@ -66,6 +66,9 @@ public class FactionsCreateCommand {
             case ERROR:
                 player.sendMessage(messages.getText(basePath + "error"));
                 break;
+            case INVALID_NAME:
+                player.sendMessage(MineClans.getInstance().getMessages().getText(basePath + "invalid_name"));
+                break;
             default:
                 break;
         }

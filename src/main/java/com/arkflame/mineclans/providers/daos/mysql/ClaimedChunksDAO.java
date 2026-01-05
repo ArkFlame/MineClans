@@ -15,7 +15,9 @@ import com.arkflame.mineclans.providers.MySQLProvider;
 import com.arkflame.mineclans.providers.processors.ResultSetProcessor;
 
 public class ClaimedChunksDAO {
-    protected String CREATE_TABLES_QUERY = "CREATE TABLE IF NOT EXISTS mineclans_chunks (" +
+    private static final String TABLE_NAME = "mineclans_chunks";
+
+    protected String CREATE_TABLES_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
             "faction_id CHAR(36) NOT NULL," +
             "chunk_x INT NOT NULL," +
             "chunk_z INT NOT NULL," +
@@ -24,24 +26,24 @@ public class ClaimedChunksDAO {
             "claim_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
             "PRIMARY KEY (faction_id, chunk_x, chunk_z, server_name, world_name)," +
             "FOREIGN KEY (faction_id) REFERENCES mineclans_factions(faction_id) ON DELETE CASCADE)";
-    protected String CLAIM_CHUNK_QUERY = "INSERT INTO mineclans_chunks (faction_id, chunk_x, chunk_z, server_name, world_name, claim_date) "
+    protected String CLAIM_CHUNK_QUERY = "INSERT INTO " + TABLE_NAME + " (faction_id, chunk_x, chunk_z, server_name, world_name, claim_date) "
             +
             "VALUES (?, ?, ?, ?, ?, NOW()) " +
             "ON DUPLICATE KEY UPDATE faction_id = VALUES(faction_id), claim_date = NOW()";
 
-    protected String UNCLAIM_CHUNK_QUERY = "DELETE FROM mineclans_chunks WHERE chunk_x = ? AND chunk_z = ? AND server_name = ? AND world_name = ?";
+    protected String UNCLAIM_CHUNK_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE chunk_x = ? AND chunk_z = ? AND server_name = ? AND world_name = ?";
 
-    protected String UNCLAIM_ALL_CHUNKS_QUERY = "DELETE FROM mineclans_chunks WHERE faction_id = ?";
+    protected String UNCLAIM_ALL_CHUNKS_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE faction_id = ?";
 
-    protected String GET_CHUNK_OWNER_QUERY = "SELECT faction_id, chunk_x, chunk_z, server_name, world_name, claim_date FROM mineclans_chunks "
+    protected String GET_CHUNK_OWNER_QUERY = "SELECT faction_id, chunk_x, chunk_z, server_name, world_name, claim_date FROM " + TABLE_NAME + " "
             +
             "WHERE chunk_x = ? AND chunk_z = ? AND server_name = ? AND world_name = ?";
 
-    protected String GET_CLAIMED_CHUNKS_QUERY = "SELECT chunk_x, chunk_z, server_name, world_name, claim_date FROM mineclans_chunks WHERE faction_id = ?";
+    protected String GET_CLAIMED_CHUNKS_QUERY = "SELECT chunk_x, chunk_z, server_name, world_name, claim_date FROM " + TABLE_NAME + " WHERE faction_id = ?";
 
-    protected String GET_CLAIMED_CHUNK_COUNT_QUERY = "SELECT COUNT(*) AS count FROM mineclans_chunks WHERE faction_id = ?";
+    protected String GET_CLAIMED_CHUNK_COUNT_QUERY = "SELECT COUNT(*) AS count FROM " + TABLE_NAME + " WHERE faction_id = ?";
 
-    protected String GET_ALL_CLAIMED_CHUNKS_QUERY = "SELECT faction_id, chunk_x, chunk_z, server_name, world_name, claim_date FROM mineclans_chunks";
+    protected String GET_ALL_CLAIMED_CHUNKS_QUERY = "SELECT faction_id, chunk_x, chunk_z, server_name, world_name, claim_date FROM " + TABLE_NAME + "";
     private MySQLProvider mySQLProvider;
 
     public ClaimedChunksDAO(MySQLProvider mySQLProvider) {

@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
@@ -93,7 +94,6 @@ public class ChunkProtectionListener implements Listener {
             event.setCancelled(true);
             sendProtectionMessage(player, claimingFactionId, actionType);
         }
-
         return false;
     }
 
@@ -112,7 +112,7 @@ public class ChunkProtectionListener implements Listener {
             return null;
         return faction.getId();
     }
-    
+
     /**
      * Sends a protection message to a player with cooldown
      *
@@ -123,16 +123,16 @@ public class ChunkProtectionListener implements Listener {
     private void sendProtectionMessage(Player player, UUID factionId, String actionType) {
         UUID playerId = player.getUniqueId();
         long now = System.currentTimeMillis();
-    
+
         // Check cooldown
         Long lastMessage = protectionMessageCooldowns.get(playerId);
         if (lastMessage != null && now - lastMessage < PROTECTION_MESSAGE_COOLDOWN_MS) {
             return; // Still in cooldown
         }
-    
+
         // Update cooldown
         protectionMessageCooldowns.put(playerId, now);
-    
+
         // Send message
         Faction faction = plugin.getFactionManager().getFaction(factionId);
         String factionName = faction != null ? faction.getName() : "Unknown Faction";
@@ -172,6 +172,11 @@ public class ChunkProtectionListener implements Listener {
             return;
         }
         canPlayerModifyInChunk(event.getPlayer(), block, event, "interact with blocks");
+        if (block != null && event.isCancelled()) {
+            MineClans.runAsync(() -> {
+                MineClans.getInstance().getProtocolLibHook().sendBlockChange(event.getPlayer(), block);
+            });
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -206,5 +211,24 @@ public class ChunkProtectionListener implements Listener {
 
         Block block = target.getLocation().getBlock();
         canPlayerModifyInChunk(player, block, event, "damage entities");
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockFromTo(BlockFromToEvent event) {
+        Block from = event.getBlock();
+        Faction fromFaction = MineClans.getInstance().getAPI().getFaction(from);
+        Block to = event.getToBlock();
+        Faction toFaction = MineClans.getInstance().getAPI().getFaction(to);
+        if (fromFaction == null && toFaction == null) {
+            return;
+        }
+        if (fromFaction != null && fromFaction.equals(toFaction)) {
+            return;
+        }
+        if (toFaction != null && toFaction.equals(fromFaction)) {
+            return;
+        }
+        canPlayerModifyInChunk(null, from, null, "move blocks");
+        canPlayerModifyInChunk(null, to, null, "move blocks");
     }
 }

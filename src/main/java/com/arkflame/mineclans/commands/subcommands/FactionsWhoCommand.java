@@ -1,6 +1,7 @@
 package com.arkflame.mineclans.commands.subcommands;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -63,7 +64,7 @@ public class FactionsWhoCommand {
 
         String formattedBalance = NumberUtil.formatBalance(faction.getBalance());
         String kills = String.valueOf(faction.getKills());
-        String score = String.valueOf(faction.getScore());
+        String score = NumberUtil.formatScore(faction.getScore());
         String foundedDate = faction.getCreationDate();
         String announcement = Optional.ofNullable(faction.getAnnouncement()).orElse("No announcements.");
         String discordLink = Optional.ofNullable(faction.getDiscord()).orElse("No Discord link.");
@@ -91,12 +92,20 @@ public class FactionsWhoCommand {
         Map<Rank, StringBuilder> memberLists = new HashMap<>();
     
         // Iterate through faction members and organize by rank
-        for (UUID memberUUID : faction.getMembers()) {
+        Iterator<UUID> iterator = faction.getMembers().iterator();
+        while (iterator.hasNext()) {
+            UUID memberUUID = iterator.next();
             Rank rank = faction.getRank(memberUUID);
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(memberUUID);
             FactionPlayer factionPlayer = api.getFactionPlayer(memberUUID);
-    
-            String playerInfo = offlinePlayer.getName() + "[&f" + NumberUtil.formatPower(factionPlayer.getPower()) + "/" + NumberUtil.formatPower(factionPlayer.getMaxPower()) + "&7]";
+            if (factionPlayer.getFaction() != faction) {
+                iterator.remove();
+                continue;
+            }
+            String power = NumberUtil.formatPower(factionPlayer.getPower());
+            String maxPower = NumberUtil.formatPower(factionPlayer.getMaxPower());
+            String playerInfo = (offlinePlayer.isOnline() ? "&a" : "&7") +
+                    offlinePlayer.getName() + "&7[&f" + power + "/" + maxPower + "&7]";
             memberLists.computeIfAbsent(rank, k -> new StringBuilder()).append(playerInfo).append(", ");
         }
     

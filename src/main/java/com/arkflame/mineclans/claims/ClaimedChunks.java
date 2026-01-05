@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Chunk;
+import org.bukkit.block.Block;
 
 import com.arkflame.mineclans.MineClans;
 import com.arkflame.mineclans.models.ChunkCoordinate;
@@ -176,7 +177,14 @@ public class ClaimedChunks {
     }
 
     public ChunkCoordinate getChunkAt(Chunk chunk) {
+        if (chunk == null) {
+            return null;
+        }
         return getChunkAt(chunk.getX(), chunk.getZ(), chunk.getWorld().getName(), MineClans.getServerId());
+    }
+
+    public ChunkCoordinate getChunkAt(Block block) {
+        return getChunkAt(block.getX() >> 4, block.getZ() >> 4, block.getWorld().getName(), MineClans.getServerId());
     }
 
     public UUID getClaimingFactionId(Chunk chunk) {

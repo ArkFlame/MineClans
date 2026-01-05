@@ -8,6 +8,7 @@ import com.arkflame.mineclans.MineClans;
 import com.arkflame.mineclans.api.MineClansAPI;
 import com.arkflame.mineclans.models.ChunkCoordinate;
 import com.arkflame.mineclans.models.Faction;
+import com.arkflame.mineclans.models.FactionPlayer;
 import com.arkflame.mineclans.utils.particle.ParticleUtil;
 
 public class ClaimedChunksParticleTask extends BukkitRunnable {
@@ -26,13 +27,19 @@ public class ClaimedChunksParticleTask extends BukkitRunnable {
                 this.cancel();
                 return;
             }
-
-            // Get player's current chunk and location
+            FactionPlayer factionPlayer = api.getFactionPlayer(player);
+            if (factionPlayer == null) {
+                continue;
+            }
+            if (!factionPlayer.isMapViewer()) {
+                continue;
+            }
             Location playerLoc = player.getLocation();
             int centerX = playerLoc.getBlockX() >> 4;
             int centerZ = playerLoc.getBlockZ() >> 4;
             double y = playerLoc.getY() + 1; // Player's Y position +1
             String worldName = playerLoc.getWorld().getName();
+            Faction faction = factionPlayer.getFaction();
 
             // Check all 9 chunks in 3x3 grid around player
             for (int xOffset = -1; xOffset <= 1; xOffset++) {
@@ -44,7 +51,6 @@ public class ClaimedChunksParticleTask extends BukkitRunnable {
                     if (api.getClaimedChunks().isChunkClaimed(chunkX, chunkZ, worldName)) {
                         ChunkCoordinate claim = api.getClaimedChunks().getChunkAt(chunkX, chunkZ, worldName);
                         if (claim != null) {
-                            Faction faction = api.getFaction(player);
                             boolean isSameFaction = faction != null && faction.getId().equals(claim.getFactionId());
                             String[] factionParticle = isSameFaction ? SAME_FACTION_PARTICLE
                                     : ENEMY_FACTION_PARTICLE;

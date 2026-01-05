@@ -4,9 +4,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.arkflame.mineclans.MineClans;
 import com.arkflame.mineclans.models.Faction;
 import com.arkflame.mineclans.providers.MySQLProvider;
 import com.arkflame.mineclans.providers.processors.ResultSetProcessor;
@@ -14,7 +13,9 @@ import com.arkflame.mineclans.utils.LocationData;
 import com.arkflame.mineclans.utils.LocationUtil;
 
 public class FactionDAO {
-    protected String CREATE_FACTIONS_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS mineclans_factions (" +
+    private final static String TABLE_NAME = "mineclans_factions";
+    
+    protected String CREATE_FACTIONS_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
             "faction_id CHAR(36) PRIMARY KEY," +
             "owner_id CHAR(36) NOT NULL," +
             "display_name VARCHAR(64) NOT NULL," +
@@ -29,9 +30,9 @@ public class FactionDAO {
             "announcement TEXT," +
             "discord VARCHAR(255))";
 
-    protected String DELETE_FACTION_BY_NAME_QUERY = "DELETE FROM mineclans_factions WHERE name = ?";
+    protected String DELETE_FACTION_BY_NAME_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE name = ?";
 
-    protected String UPSERT_FACTION_QUERY = "INSERT INTO mineclans_factions (" +
+    protected String UPSERT_FACTION_QUERY = "INSERT INTO " + TABLE_NAME + " (" +
             "faction_id, owner_id, display_name, home, name, balance, kills, events_won, friendly_fire, open, creation_date, announcement, discord) "
             +
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
@@ -49,15 +50,15 @@ public class FactionDAO {
             "announcement = VALUES(announcement), " +
             "discord = VALUES(discord)";
 
-    protected String DELETE_FACTION_BY_ID_QUERY = "DELETE FROM mineclans_factions WHERE faction_id = ?";
+    protected String DELETE_FACTION_BY_ID_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE faction_id = ?";
 
     protected String SELECT_FACTION_BY_ID_QUERY = "SELECT faction_id, name, owner_id, display_name, home, balance, kills, events_won, friendly_fire, open, creation_date, announcement, discord "
             +
-            "FROM mineclans_factions WHERE faction_id = ?";
+            "FROM " + TABLE_NAME + " WHERE faction_id = ?";
 
     protected String SELECT_FACTION_BY_NAME_QUERY = "SELECT faction_id, name, owner_id, display_name, home, balance, kills, events_won, friendly_fire, open, creation_date, announcement, discord "
             +
-            "FROM mineclans_factions WHERE name = ?";
+            "FROM " + TABLE_NAME + " WHERE name = ?";
 
     private MySQLProvider mySQLProvider;
 
@@ -101,7 +102,7 @@ public class FactionDAO {
         removeFaction(faction.getId());
     }
 
-    private Faction extractFactionFromResultSet(ResultSet resultSet) throws SQLException {
+    private boolean extractFactionFromResultSet(ResultSet resultSet, Faction faction) throws SQLException {
         if (resultSet.next()) {
             UUID id = UUID.fromString(resultSet.getString("faction_id"));
             UUID ownerId = UUID.fromString(resultSet.getString("owner_id"));
@@ -122,7 +123,7 @@ public class FactionDAO {
             String discord = resultSet.getString("discord");
 
             // Create a Faction object and set additional properties
-            Faction faction = new Faction(id, ownerId, name, displayName);
+            faction.setup(id, ownerId, name, displayName);
             faction.setHome(home);
             faction.setBalance(balance);
             faction.setFriendlyFire(friendlyFire);
@@ -148,29 +149,28 @@ public class FactionDAO {
 
             // Load Power
             faction.updatePower();
-
-            return faction;
+            return true;
         }
-        return null;
+        return false;
     }
 
-    public Faction getFactionById(UUID factionId) {
-        AtomicReference<Faction> faction = new AtomicReference<>(null);
+    public boolean getFactionById(UUID factionId, Faction faction) {
+        AtomicBoolean extracted = new AtomicBoolean(false);
         mySQLProvider.executeSelectQuery(SELECT_FACTION_BY_ID_QUERY, new ResultSetProcessor() {
             public void run(ResultSet resultSet) throws SQLException {
-                faction.set(extractFactionFromResultSet(resultSet));
+                extracted.set(extractFactionFromResultSet(resultSet, faction));
             };
         }, factionId.toString());
-        return faction.get();
+        return extracted.get();
     }
 
-    public Faction getFactionByName(String name) {
-        AtomicReference<Faction> faction = new AtomicReference<>(null);
+    public boolean getFactionByName(String name, Faction faction) {
+        AtomicBoolean extracted = new AtomicBoolean(false);
         mySQLProvider.executeSelectQuery(SELECT_FACTION_BY_NAME_QUERY, new ResultSetProcessor() {
             public void run(ResultSet resultSet) throws SQLException {
-                faction.set(extractFactionFromResultSet(resultSet));
+                extracted.set(extractFactionFromResultSet(resultSet, faction));
             };
         }, name);
-        return faction.get();
+        return extracted.get();
     }
 }

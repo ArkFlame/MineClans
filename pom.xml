@@ -11,7 +11,7 @@
     <!-- Plugin Information -->
     <name>MineClans</name>
     <description>This plugin was made using the Spigot Boilerplate by ArkFlame Development</description>
-    <version>1.1.5</version>
+    <version>1.1.6</version>
     <url>https://github.com/arkflame/Spigot-Boilerplate</url>
 
     <properties>
@@ -41,6 +41,10 @@
         <repository>
             <id>enginehub</id>
             <url>https://maven.enginehub.org/repo/</url>
+        </repository>
+        <repository>
+            <id>dmulloy2-repo</id>
+            <url>https://repo.dmulloy2.net/repository/public/</url>
         </repository>
     </repositories>
 
@@ -78,6 +82,12 @@
             <groupId>us.dynmap</groupId>
             <artifactId>dynmap-api</artifactId>
             <version>3.3-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.comphenix.protocol</groupId>
+            <artifactId>ProtocolLib</artifactId>
+            <version>5.3.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

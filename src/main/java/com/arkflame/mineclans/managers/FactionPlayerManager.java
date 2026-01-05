@@ -15,36 +15,53 @@ import org.bukkit.entity.Player;
 public class FactionPlayerManager {
     // Cache for faction players
     private Map<UUID, FactionPlayer> factionPlayerCacheById = new ConcurrentHashMap<>();
-
     // Cache for faction players
     private Map<String, FactionPlayer> factionPlayerCacheByName = new ConcurrentHashMap<>();
 
-    // Get or load a FactionPlayer by UUID
-    public FactionPlayer getOrLoad(UUID playerId) {
-        if (playerId == null) {
+    // Get or load a FactionPlayer by name
+    public FactionPlayer getOrLoad(String name) {
+        if (name == null) {
             return null;
         }
         // Check cache first
-        FactionPlayer factionPlayer = factionPlayerCacheById.get(playerId);
+        FactionPlayer factionPlayer = factionPlayerCacheByName.get(name);
         if (factionPlayer != null) {
-            if (factionPlayer.getName() != null && !factionPlayerCacheByName.containsKey(factionPlayer.getName())) {
-                factionPlayerCacheByName.put(factionPlayer.getName(), factionPlayer);
-            }
-
             return factionPlayer;
         }
 
         // If not in cache, load from database
-        factionPlayer = loadFactionPlayerFromDatabase(playerId);
+        factionPlayer = cache(new FactionPlayer(name));
+        loadFactionPlayerFromDatabase(name, factionPlayer);
+        cache(factionPlayer);
+        return factionPlayer;
+    }
+
+    // Get or load a FactionPlayer by UUID
+    public FactionPlayer getOrLoad(UUID id) {
+        if (id == null) {
+            return null;
+        }
+        // Check cache first
+        FactionPlayer factionPlayer = factionPlayerCacheById.get(id);
         if (factionPlayer != null) {
-            factionPlayerCacheById.put(playerId, factionPlayer);
+            return factionPlayer;
+        }
+
+        // If not in cache, load from database
+        factionPlayer = cache(new FactionPlayer(id));
+        loadFactionPlayerFromDatabase(id, factionPlayer);
+        cache(factionPlayer);
+        return factionPlayer;
+    }
+
+    public FactionPlayer cache(FactionPlayer factionPlayer) {
+        if (factionPlayer != null) {
+            if (factionPlayer.getPlayerId() != null) {
+                factionPlayerCacheById.put(factionPlayer.getPlayerId(), factionPlayer);
+            }
             if (factionPlayer.getName() != null) {
                 factionPlayerCacheByName.put(factionPlayer.getName(), factionPlayer);
             }
-        } else {
-            // Return a new faction player if not found
-            factionPlayer = new FactionPlayer(playerId);
-            factionPlayerCacheById.put(playerId, factionPlayer);
         }
         return factionPlayer;
     }
@@ -56,39 +73,14 @@ public class FactionPlayerManager {
         return getOrLoad(player.getUniqueId());
     }
 
-    // Get or load a FactionPlayer by name
-    public FactionPlayer getOrLoad(String playerName) {
-        if (playerName == null) {
-            return null;
-        }
-        // Check cache first
-        FactionPlayer factionPlayer = factionPlayerCacheByName.get(playerName);
-        if (factionPlayer != null) {
-            if (factionPlayer.getPlayerId() != null && !factionPlayerCacheById.containsKey(factionPlayer.getPlayerId())) {
-                factionPlayerCacheById.put(factionPlayer.getPlayerId(), factionPlayer);
-            }
-
-            return factionPlayer;
-        }
-
-        // If not in cache, load from database
-        factionPlayer = loadFactionPlayerFromDatabase(playerName);
-        if (factionPlayer != null) {
-            if (factionPlayer.getPlayerId() != null) {
-                factionPlayerCacheById.put(factionPlayer.getPlayerId(), factionPlayer);
-            }
-            factionPlayerCacheByName.put(playerName, factionPlayer);
-        }
-        return factionPlayer;
-    }
-
     public void save(UUID uuid) {
         save(getOrLoad(uuid));
     }
 
     // Save a FactionPlayer to the database
     public void save(FactionPlayer factionPlayer) {
-        if (factionPlayer == null) return;
+        if (factionPlayer == null)
+            return;
         MineClans.getInstance().getMySQLProvider().getFactionPlayerDAO().insertOrUpdatePlayer(factionPlayer);
     }
 
@@ -103,12 +95,12 @@ public class FactionPlayerManager {
     }
 
     // Placeholder method to load faction player from database
-    public FactionPlayer loadFactionPlayerFromDatabase(UUID playerId) {
-        return MineClans.getInstance().getMySQLProvider().getFactionPlayerDAO().getPlayerById(playerId);
+    public FactionPlayer loadFactionPlayerFromDatabase(UUID playerId, FactionPlayer factionPlayer) {
+        return MineClans.getInstance().getMySQLProvider().getFactionPlayerDAO().getPlayerById(playerId, factionPlayer);
     }
 
-    public FactionPlayer loadFactionPlayerFromDatabase(String name) {
-        return MineClans.getInstance().getMySQLProvider().getFactionPlayerDAO().getPlayerByName(name);
+    public FactionPlayer loadFactionPlayerFromDatabase(String name, FactionPlayer factionPlayer) {
+        return MineClans.getInstance().getMySQLProvider().getFactionPlayerDAO().getPlayerByName(name, factionPlayer);
     }
 
     public void updateJoinDate(UUID playerId) {
