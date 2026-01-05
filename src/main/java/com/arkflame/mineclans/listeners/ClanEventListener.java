@@ -1,5 +1,6 @@
 package com.arkflame.mineclans.listeners;
 
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -16,42 +17,53 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Monster;
 
 public class ClanEventListener implements Listener {
+
     @EventHandler(ignoreCancelled = true)
     public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        MineClans.runAsync(() -> {
-            MineClans.getInstance().getAPI().addDeath(player);
-        });
-        Player killer = player.getKiller();
-        if (killer != null) {
-            FactionPlayer factionPlayer = MineClans.getInstance().getAPI().getFactionPlayer(player);
-            ClanEvent currentEvent = MineClans.getInstance().getAPI().getCurrentEvent();
-            if (currentEvent != null) {
-                currentEvent.onFactionKill(factionPlayer);
+        final Player player = event.getEntity();
+        final Player killer = player.getKiller(); // MUST capture on main thread
+        final MineClans plugin = MineClans.getInstance();
+        final ClanEvent currentEvent = plugin.getAPI().getCurrentEvent(); // Capture on main thread
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            // Database operation
+            plugin.getAPI().addDeath(player);
+
+            if (killer != null && currentEvent != null) {
+                // Load data (Assuming this involves DB lookup)
+                FactionPlayer factionPlayer = plugin.getAPI().getFactionPlayer(player);
+
+                // Switch back to main thread to trigger event logic
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    currentEvent.onFactionKill(factionPlayer);
+                });
             }
-        }
+        });
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
-        FactionPlayer factionPlayer = MineClans.getInstance().getAPI().getFactionPlayer(player);
-        ClanEvent currentEvent = MineClans.getInstance().getAPI().getCurrentEvent();
+        MineClans plugin = MineClans.getInstance();
+        ClanEvent currentEvent = plugin.getAPI().getCurrentEvent();
+        
         if (currentEvent != null) {
+            FactionPlayer factionPlayer = plugin.getAPI().getFactionPlayer(player);
             currentEvent.onBlockBreak(event.getBlock(), factionPlayer);
         }
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onEntityDeath(EntityDeathEvent event) {
-        Entity entity = event.getEntity();
-        if (entity instanceof Monster) {
-            Monster monster = (Monster) entity;
+        if (event.getEntity() instanceof Monster) {
+            Monster monster = (Monster) event.getEntity();
             Player killer = monster.getKiller();
+            
             if (killer != null) {
-                FactionPlayer factionPlayer = MineClans.getInstance().getAPI().getFactionPlayer(killer);
-                ClanEvent currentEvent = MineClans.getInstance().getAPI().getCurrentEvent();
+                MineClans plugin = MineClans.getInstance();
+                ClanEvent currentEvent = plugin.getAPI().getCurrentEvent();
                 if (currentEvent != null) {
+                    FactionPlayer factionPlayer = plugin.getAPI().getFactionPlayer(killer);
                     currentEvent.onMonsterKill(factionPlayer);
                 }
             }
@@ -60,12 +72,15 @@ public class ClanEventListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onPlayerFish(PlayerFishEvent event) {
+        if (event.getCaught() == null) return; // Didn't catch anything
+
         Player player = event.getPlayer();
-        FactionPlayer factionPlayer = MineClans.getInstance().getAPI().getFactionPlayer(player);
-        int amount = event.getCaught() != null ? 1 : 0; // Assuming the event provides the caught item
-        ClanEvent currentEvent = MineClans.getInstance().getAPI().getCurrentEvent();
+        MineClans plugin = MineClans.getInstance();
+        ClanEvent currentEvent = plugin.getAPI().getCurrentEvent();
+        
         if (currentEvent != null) {
-            currentEvent.onFishingFrenzy(factionPlayer, amount);
+            FactionPlayer factionPlayer = plugin.getAPI().getFactionPlayer(player);
+            currentEvent.onFishingFrenzy(factionPlayer, 1);
         }
     }
 }

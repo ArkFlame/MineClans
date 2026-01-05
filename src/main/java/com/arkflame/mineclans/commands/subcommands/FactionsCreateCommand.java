@@ -15,9 +15,32 @@ import com.arkflame.mineclans.utils.MelodyUtil.Melody;
 public class FactionsCreateCommand {
     public static void onCommand(Player player, ModernArguments args) {
         ConfigWrapper messages = MineClans.getInstance().getMessages();
-        String factionName = args.getText(1);
         MineClans mineClans = MineClans.getInstance();
-        String basePath = "factions.create.";
+        String rawName = args.getText(1);
+        
+        // 1. Check if null or empty first
+        if (rawName == null || rawName.trim().isEmpty()) {
+            player.sendMessage(messages.getText(basePath + "usage"));
+            return;
+        }
+
+        // 2. Trim to remove accidental leading/trailing whitespace
+        String factionName = rawName.trim();
+
+        // 3. Length check (Specific error message is good UX)
+        if (factionName.length() > 8) {
+            player.sendMessage(messages.getText(basePath + "name_too_long"));
+            return;
+        }
+
+        // 4. Regex check 
+        // Removed the space to prevent command issues. 
+        // Matches letters, numbers, underscores, and hyphens.
+        if (!factionName.matches("^[A-Za-z0-9_\\-]+$")) { 
+            player.sendMessage(messages.getText(basePath + "invalid_characters"));
+            return;
+        }
+
         CreateResult createResult = mineClans.getAPI().create(player, factionName);
         Faction faction = createResult.getFaction();
         CreateResultState state = createResult.getState();
@@ -51,3 +74,4 @@ public class FactionsCreateCommand {
         }
     }
 }
+

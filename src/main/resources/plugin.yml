@@ -7,3 +7,8 @@ url: ${url}
 api-version: 1.13
 api: 1.13
 softdepend: [ PlaceholderAPI, Vault, Dynmap, WorldGuard, PacketEvents ]
+commands:
+  factions:
+    description: Faction commands
+    usage: /<command> [args]
+    aliases: [f, clans, clan, guilds, guild]

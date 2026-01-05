@@ -14,8 +14,8 @@ public class FactionPlayerDAO {
     private final static String TABLE_NAME = "mineclans_players";
 
     protected String CREATE_TABLES_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " ("
-            + "player_id TEXT NOT NULL PRIMARY KEY,"
-            + "faction_id TEXT,"
+            + "player_id CHAR(36) NOT NULL PRIMARY KEY,"
+            + "faction_id CHAR(36) NULL,"
             + "join_date TIMESTAMP,"
             + "last_active TIMESTAMP,"
             + "kills INT DEFAULT 0,"
