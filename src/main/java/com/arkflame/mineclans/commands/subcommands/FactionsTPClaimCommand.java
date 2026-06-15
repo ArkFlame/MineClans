@@ -24,14 +24,12 @@ public class FactionsTPClaimCommand {
         MineClansAPI api = mineClans.getAPI();
         ConfigWrapper messages = mineClans.getMessages();
 
-        // Check if player is in a faction
         Faction faction = api.getFaction(player);
         if (faction == null) {
             player.sendMessage(ChatColors.color(messages.getText(BASE_PATH + "not_in_faction")));
             return;
         }
 
-        // Get player's faction claims
         List<ChunkCoordinate> claims = new ArrayList<>(api.getClaimedChunks().getClaimedChunks(faction.getId()));
 
         if (claims == null || claims.isEmpty()) {
@@ -46,39 +44,47 @@ public class FactionsTPClaimCommand {
             return;
         }
 
-        // Get the target claim
-        ChunkCoordinate targetClaim = claims.get(claimIndex);
+        final ChunkCoordinate targetClaim = claims.get(claimIndex);
+        final String worldName = targetClaim.getWorldName();
 
-        // Get world of the claim
-        String worldName = targetClaim.getWorldName();
         if (worldName == null || mineClans.getServer().getWorld(worldName) == null) {
             player.sendMessage(ChatColors.color(messages.getText(BASE_PATH + "invalid_world")));
             return;
         }
 
-        // Calculate teleport location (center of the chunk)
+        int targetChunkX = targetClaim.getX();
+        int targetChunkZ = targetClaim.getZ();
+        String serverName = MineClans.getServerId();
+
+        if (api.getClaimedChunks().isChunkClaimed(targetChunkX, targetChunkZ, worldName, serverName)) {
+            ChunkCoordinate claim = api.getClaimedChunks().getChunkAt(targetChunkX, targetChunkZ, worldName, serverName);
+            if (claim != null && !claim.getFactionId().equals(faction.getId())) {
+                player.sendMessage(ChatColors.color(messages.getText(BASE_PATH + "enemy_claim")));
+                return;
+            }
+        }
+
         MineClans.runSync(() -> {
-            Chunk chunk = mineClans.getServer().getWorld(worldName).getChunkAt(targetClaim.getX(), targetClaim.getZ());
-            MineClans.runAsync(() -> {
-                Location targetLocation = new Location(
-                        chunk.getWorld(),
-                        chunk.getX() * 16 + 8, // Center X of chunk
-                        chunk.getWorld().getHighestBlockYAt(chunk.getX() * 16 + 8, chunk.getZ() * 16 + 8) + 1, // Safe Y
-                                                                                                               // position
-                        chunk.getZ() * 16 + 8 // Center Z of chunk
-                );
+            org.bukkit.World world = mineClans.getServer().getWorld(worldName);
+            if (world == null) {
+                return;
+            }
+            Chunk chunk = world.getChunkAt(targetChunkX, targetChunkZ);
+            int safeY = world.getHighestBlockYAt(targetChunkX * 16 + 8, targetChunkZ * 16 + 8) + 1;
+            final Location targetLocation = new Location(
+                    world,
+                    targetChunkX * 16 + 8,
+                    safeY,
+                    targetChunkZ * 16 + 8);
 
-                // Schedule teleport with warmup
-                int warmup = mineClans.getCfg().getInt("claims.warmup", 10);
-                player.sendMessage(ChatColors.color(messages.getText(BASE_PATH + "teleporting")
-                        .replace("{time}", String.valueOf(warmup))
-                        .replace("{claim}", String.valueOf(claimIndex))
-                        .replace("{x}", String.valueOf(targetClaim.getX()))
-                        .replace("{z}", String.valueOf(targetClaim.getZ()))));
+            int warmup = mineClans.getCfg().getInt("claims.warmup", 10);
+            player.sendMessage(ChatColors.color(messages.getText(BASE_PATH + "teleporting")
+                    .replace("{time}", String.valueOf(warmup))
+                    .replace("{claim}", String.valueOf(claimIndex))
+                    .replace("{x}", String.valueOf(targetChunkX))
+                    .replace("{z}", String.valueOf(targetChunkZ))));
 
-                // Use the same teleport scheduler as the home command
-                mineClans.getTeleportScheduler().schedule(player, new LocationData(targetLocation, null), warmup);
-            });
+            mineClans.getTeleportScheduler().schedule(player, new LocationData(targetLocation, null), warmup);
         });
     }
 

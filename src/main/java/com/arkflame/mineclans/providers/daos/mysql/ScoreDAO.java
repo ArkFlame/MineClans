@@ -16,12 +16,10 @@ public class ScoreDAO {
 
     protected String SELECT_SCORE_BY_FACTION_ID_QUERY = "SELECT score FROM mineclans_score WHERE faction_id = ?";
 
-    protected String INSERT_OR_UPDATE_SCORE_QUERY = "INSERT INTO mineclans_score (faction_id, score) VALUES (?, ?) "
-            +
+    protected String INSERT_OR_UPDATE_SCORE_QUERY = "INSERT INTO mineclans_score (faction_id, score) VALUES (?, ?) " +
             "ON DUPLICATE KEY UPDATE score = VALUES(score)";
 
-    protected String SELECT_POSITION_BY_FACTION_ID_QUERY = "SELECT (SELECT COUNT(*) FROM mineclans_score AS mp WHERE mp.score > m.score "
-            +
+    protected String SELECT_POSITION_BY_FACTION_ID_QUERY = "SELECT (SELECT COUNT(*) FROM mineclans_score AS mp WHERE mp.score > m.score " +
             "OR (mp.score = m.score AND mp.faction_id < m.faction_id)) AS idx_score " +
             "FROM mineclans_score AS m WHERE m.faction_id = ?";
 
@@ -71,7 +69,7 @@ public class ScoreDAO {
                         }
                     }
                 }, factionId.toString());
-        return position[0] + 1; // Adjusting for 1-based index
+        return position[0] + 1;
     }
 
     public UUID getFactionIdByPosition(int position) {
@@ -91,5 +89,9 @@ public class ScoreDAO {
     public void removeFaction(UUID factionId) {
         mySQLProvider.executeUpdateQuery(DELETE_SCORE_BY_FACTION_ID_QUERY,
                 factionId.toString());
+    }
+
+    public void deleteScore(UUID factionId) {
+        removeFaction(factionId);
     }
 }

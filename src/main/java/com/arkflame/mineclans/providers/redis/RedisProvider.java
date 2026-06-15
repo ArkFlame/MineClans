@@ -6,15 +6,16 @@ import com.arkflame.mineclans.enums.RelationType;
 import com.arkflame.mineclans.managers.FactionManager;
 import com.arkflame.mineclans.managers.FactionPlayerManager;
 import com.arkflame.mineclans.models.Faction;
+import com.arkflame.mineclans.modernlib.config.ConfigWrapper;
 import com.arkflame.mineclans.utils.LocationData;
 import com.arkflame.mineclans.utils.LocationUtil;
 
-import org.bukkit.configuration.Configuration;
 import org.bukkit.plugin.Plugin;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+import java.net.URI;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,13 +25,13 @@ public class RedisProvider {
     private FactionManager factionManager;
     private FactionPlayerManager factionPlayerManager;
     private final Logger logger;
-    private final Configuration config;
+    private final ConfigWrapper config;
     private final String channelName;
     private final String instanceId;
     private boolean shutdown = false;
     private JedisPool jedisPool;
 
-    public RedisProvider(FactionManager factionManager, FactionPlayerManager factionPlayerManager, Configuration config,
+    public RedisProvider(FactionManager factionManager, FactionPlayerManager factionPlayerManager, ConfigWrapper config,
             Logger logger) {
         this.factionManager = factionManager;
         this.factionPlayerManager = factionPlayerManager;
@@ -38,9 +39,9 @@ public class RedisProvider {
         this.logger = logger;
         this.channelName = config.getString("redis.channel", "mineclansUpdates");
         this.instanceId = UUID.randomUUID().toString();
-        
+
         if (!config.getBoolean("redis.enabled")) {
-            logger.info("Redis is disabled in the configuration fille. Buffs and locations wont synchronize.");
+            logger.info("Redis is disabled in the configuration file. Buffs and locations wont synchronize.");
             return;
         }
 
@@ -48,7 +49,7 @@ public class RedisProvider {
         new Thread(this::subscribeToFactionUpdates).start();
     }
 
-    private void validateInputs(FactionManager factionManager, Configuration config) {
+    private void validateInputs(FactionManager factionManager, ConfigWrapper config) {
         if (factionManager == null || config == null) {
             throw new IllegalArgumentException("FactionManager and Configuration cannot be null");
         }
@@ -58,7 +59,6 @@ public class RedisProvider {
         return jedisPool == null || jedisPool.isClosed();
     }
 
-    // Call this method once to initialize and open the pool
     public void initializeRedis() {
         if (isClosed()) {
             JedisPoolConfig poolConfig = new JedisPoolConfig();
@@ -68,16 +68,32 @@ public class RedisProvider {
             poolConfig.setTestOnBorrow(true);
             poolConfig.setTestOnReturn(true);
 
-            jedisPool = new JedisPool(config.getString("redis.host"), config.getInt("redis.port"));
+            String host = config.getString("redis.host");
+            int port = config.getInt("redis.port");
+            boolean ssl = config.getBoolean("redis.ssl", false);
+            String scheme = ssl ? "rediss" : "redis";
+
+            String user = "";
+            String password = "";
+            if (config.getBoolean("redis.auth.enabled")) {
+                user = config.getString("redis.auth.username", "");
+                password = config.getString("redis.auth.password", "");
+            }
+
+            String uriStr;
+            if (user.isEmpty()) {
+                uriStr = scheme + "://" + host + ":" + port;
+            } else {
+                uriStr = scheme + "://" + user + ":" + password + "@" + host + ":" + port;
+            }
+            URI uri = URI.create(uriStr);
+
+            jedisPool = new JedisPool(poolConfig, uri, 2000, 2000);
         }
     }
 
     public Jedis getResource() {
-        Jedis jedis = jedisPool.getResource();
-        if (config.getBoolean("redis.auth.enabled")) {
-            jedis.auth(config.getString("redis.auth.password", ""));
-        }
-        return jedis;
+        return jedisPool.getResource();
     }
 
     private void subscribeToFactionUpdates() {

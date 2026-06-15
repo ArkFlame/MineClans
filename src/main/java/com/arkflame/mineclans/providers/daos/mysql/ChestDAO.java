@@ -15,7 +15,7 @@ import java.util.UUID;
 
 public class ChestDAO {
     private static final String TABLE_NAME = "mineclans_chests";
-    
+
     protected String CREATE_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " ("
             + "faction_id CHAR(36) NOT NULL PRIMARY KEY, "
             + "chest_contents TEXT"
@@ -63,5 +63,9 @@ public class ChestDAO {
 
     public void deleteFactionChest(UUID id) {
         mySQLProvider.executeUpdateQuery(DELECT_CHEST_QUERY, id);
+    }
+
+    public void deleteChest(UUID id) {
+        deleteFactionChest(id);
     }
 }

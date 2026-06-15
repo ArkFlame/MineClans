@@ -19,8 +19,7 @@ public class RelationsDAO {
 
     protected String INSERT_RELATION_QUERY = "INSERT INTO mineclans_relations (faction_id, target_faction_id, relation_type) VALUES (?, ?, ?)";
 
-    protected String INSERT_OR_UPDATE_RELATION_QUERY = "INSERT INTO mineclans_relations (faction_id, target_faction_id, relation_type) "
-            +
+    protected String INSERT_OR_UPDATE_RELATION_QUERY = "INSERT INTO mineclans_relations (faction_id, target_faction_id, relation_type) " +
             "VALUES (?, ?, ?) " +
             "ON DUPLICATE KEY UPDATE relation_type = VALUES(relation_type)";
 
@@ -74,11 +73,12 @@ public class RelationsDAO {
     }
 
     public void removeRelationsById(UUID id) {
-        // Remove relations where the faction_id matches the given ID
         mySQLProvider.executeUpdateQuery(DELETE_RELATIONS_BY_FACTION_ID_QUERY, id);
-
-        // Remove relations where the target_faction_id matches the given ID
         mySQLProvider.executeUpdateQuery(DELETE_RELATIONS_BY_TARGET_ID_QUERY, id);
+    }
+
+    public void removeRelationsByTargetId(UUID targetId) {
+        mySQLProvider.executeUpdateQuery(DELETE_RELATIONS_BY_TARGET_ID_QUERY, targetId);
     }
 
 }

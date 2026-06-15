@@ -181,9 +181,11 @@ redis:
   enabled: true  # Set to false if Redis should not be used
   host: "localhost"  # Redis server address
   port: 6379  # Redis server port
+  ssl: false  # Set to true to enable TLS/SSL connection
   channel: "mineclansUpdates"  # Redis channel for faction updates
 
   # Redis authentication (optional)
   auth:
     enabled: false  # Set to true if authentication is required
+    username: ""  # Redis username if authentication is enabled
     password: ""  # Redis password if authentication is enabled

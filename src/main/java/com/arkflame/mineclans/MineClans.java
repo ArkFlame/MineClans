@@ -40,6 +40,7 @@ import com.arkflame.mineclans.listeners.PlayerMoveListener;
 import com.arkflame.mineclans.listeners.PlayerQuitListener;
 import com.arkflame.mineclans.listeners.PlayerTeleportListener;
 import com.arkflame.mineclans.managers.FactionBenefitsManager;
+import com.arkflame.mineclans.services.FactionLifecycleService;
 import com.arkflame.mineclans.managers.FactionManager;
 import com.arkflame.mineclans.managers.FactionPlayerManager;
 import com.arkflame.mineclans.managers.LeaderboardManager;
@@ -47,6 +48,7 @@ import com.arkflame.mineclans.managers.ScoreManager;
 import com.arkflame.mineclans.models.Faction;
 import com.arkflame.mineclans.modernlib.config.ConfigWrapper;
 import com.arkflame.mineclans.modernlib.menus.listeners.MenuListener;
+import com.arkflame.mineclans.providers.DatabaseExecutor;
 import com.arkflame.mineclans.providers.MySQLProvider;
 import com.arkflame.mineclans.providers.redis.RedisProvider;
 import com.arkflame.mineclans.tasks.BuffExpireTask;
@@ -61,6 +63,67 @@ import net.milkbowl.vault.economy.Economy;
 public class MineClans extends JavaPlugin {
     private static MineClans instance;
     private static String serverId;
+
+    public static final String DEFAULT_SQL_TABLE_PREFIX = "mineclans";
+    private static volatile SqlTableNames sqlTableNames = SqlTableNames.fromPrefix(DEFAULT_SQL_TABLE_PREFIX);
+
+    public static final class SqlTableNames {
+        private final String factions;
+        private final String players;
+        private final String invited;
+        private final String members;
+        private final String ranks;
+        private final String relations;
+        private final String score;
+        private final String chunks;
+        private final String chests;
+        private final String schemaMigrations;
+        private final String playerJoins;
+        private final String markerPreferences;
+
+        private SqlTableNames(String prefix) {
+            this.factions = prefix + "_factions";
+            this.players = prefix + "_players";
+            this.invited = prefix + "_invited";
+            this.members = prefix + "_members";
+            this.ranks = prefix + "_ranks";
+            this.relations = prefix + "_relations";
+            this.score = prefix + "_score";
+            this.chunks = prefix + "_chunks";
+            this.chests = prefix + "_chests";
+            this.schemaMigrations = prefix + "_schema_migrations";
+            this.playerJoins = prefix + "_player_joins";
+            this.markerPreferences = prefix + "_marker_preferences";
+        }
+
+        public static SqlTableNames fromPrefix(String prefix) {
+            if (prefix == null || !prefix.matches("[A-Za-z][A-Za-z0-9_]{0,31}")) {
+                throw new IllegalArgumentException("Invalid table prefix: " + prefix);
+            }
+            return new SqlTableNames(prefix);
+        }
+
+        public String getFactions() { return factions; }
+        public String getPlayers() { return players; }
+        public String getInvited() { return invited; }
+        public String getMembers() { return members; }
+        public String getRanks() { return ranks; }
+        public String getRelations() { return relations; }
+        public String getScore() { return score; }
+        public String getChunks() { return chunks; }
+        public String getChests() { return chests; }
+        public String getSchemaMigrations() { return schemaMigrations; }
+        public String getPlayerJoins() { return playerJoins; }
+        public String getMarkerPreferences() { return markerPreferences; }
+    }
+
+    public static SqlTableNames getSqlTableNames() {
+        return sqlTableNames;
+    }
+
+    static void configureSqlTableNames(String prefix) {
+        sqlTableNames = SqlTableNames.fromPrefix(prefix);
+    }
 
     public static void setInstance(MineClans instance) {
         MineClans.instance = instance;
@@ -89,44 +152,33 @@ public class MineClans extends JavaPlugin {
     private ConfigWrapper config;
     private ConfigWrapper messages;
 
-    // Providers
+    private DatabaseExecutor databaseExecutor;
     private MySQLProvider mySQLProvider = null;
 
-    // Managers
     private FactionManager factionManager;
     private FactionPlayerManager factionPlayerManager;
 
-    // API
     private MineClansAPI api;
 
     private FactionsCommand factionsCommand;
 
-    // Vault Economy
     private Economy economy;
 
-    // Events
     private ClanEventManager clanEventManager;
     private ClanEventScheduler clanEventScheduler;
 
-    // Leaderboard Manager
     private LeaderboardManager leaderboardManager;
 
-    // Score Manager
     private ScoreManager scoreManager;
 
-    // Buff Manager
     private BuffManager buffManager;
 
-    // Redis Provider
     private RedisProvider redisProvider = null;
 
-    // Bungee Util
     private BungeeUtil bungeeUtil;
 
-    // Teleport Scheduler
     private TeleportScheduler teleportScheduler;
 
-    // Claimed Chunks
     private ClaimedChunks claimedChunks;
     private FactionsClaimsMenuListener claimsMenuListener;
 
@@ -135,6 +187,8 @@ public class MineClans extends JavaPlugin {
 
     private FactionBenefitsManager benefitsManager;
     private FactionBenefitsTask benefitsTask;
+
+    private FactionLifecycleService factionLifecycleService;
 
     private ProtocolLibHook protocolLibHook;
 
@@ -160,6 +214,10 @@ public class MineClans extends JavaPlugin {
 
     public MineClansAPI getAPI() {
         return api;
+    }
+
+    public DatabaseExecutor getDatabaseExecutor() {
+        return databaseExecutor;
     }
 
     private boolean setupEconomy() {
@@ -235,121 +293,124 @@ public class MineClans extends JavaPlugin {
     public void onEnable() {
         Logger logger = getLogger();
         Server server = getServer();
-        // Set static instance
         setInstance(this);
+
+        config = new ConfigWrapper(this, "config.yml").saveDefault().load();
+        messages = new ConfigWrapper(this, "messages.yml").saveDefault().load();
+
+        config.set("serverId", MineClans.serverId = config.getString("serverId", UUID.randomUUID().toString()));
+        config.save();
+
+        String tablePrefix = config.getString("mysql.table-prefix", DEFAULT_SQL_TABLE_PREFIX);
+        configureSqlTableNames(tablePrefix);
+        logger.info("Using table prefix: " + tablePrefix);
+
+        databaseExecutor = new DatabaseExecutor();
+
         protocolLibHook = new ProtocolLibHook(this);
-        runAsync(() -> {
-            // Save default config
-            config = new ConfigWrapper(this, "config.yml").saveDefault().load();
-            messages = new ConfigWrapper(this, "messages.yml").saveDefault().load();
 
-            config.set("serverId", MineClans.serverId = config.getString("serverId", UUID.randomUUID().toString()));
-            config.save();
+        dynmapIntegration = new DynmapIntegration(this);
+        worldGuardReflectionUil = new WorldGuardReflectionUtil();
 
-            // Hooks
-            dynmapIntegration = new DynmapIntegration(this);
-            worldGuardReflectionUil = new WorldGuardReflectionUtil();
+        mySQLProvider = new MySQLProvider(
+                config.getBoolean("mysql.enabled", true),
+                config.getString("mysql.url"),
+                config.getString("mysql.username"),
+                config.getString("mysql.password"),
+                databaseExecutor,
+                logger);
 
-            // Basic
-            mySQLProvider = new MySQLProvider(
-                    config.getBoolean("mysql.enabled"),
-                    config.getString("mysql.url"),
-                    config.getString("mysql.username"),
-                    config.getString("mysql.password"));
-            factionManager = new FactionManager();
-            factionPlayerManager = new FactionPlayerManager();
-            redisProvider = new RedisProvider(factionManager, factionPlayerManager, getConfig(), logger);
+        if (mySQLProvider == null || !mySQLProvider.isConnected()) {
+            server.getPluginManager().disablePlugin(this);
+            return;
+        }
 
-            // API
-            api = new MineClansAPI(factionManager, factionPlayerManager, mySQLProvider, redisProvider);
+        factionManager = new FactionManager();
+        factionPlayerManager = new FactionPlayerManager();
 
-            // Advanced
-            clanEventManager = new ClanEventManager(this);
-            clanEventScheduler = new ClanEventScheduler(config.getInt("events.interval"),
-                    config.getInt("events.time-limit"));
-            leaderboardManager = new LeaderboardManager(mySQLProvider.getScoreDAO());
-            scoreManager = new ScoreManager(mySQLProvider.getScoreDAO(), leaderboardManager);
-            buffManager = new BuffManager(config);
-            bungeeUtil = new BungeeUtil(this);
-            teleportScheduler = new TeleportScheduler(this);
-            claimedChunks = new ClaimedChunks(mySQLProvider.getClaimedChunksDAO());
-            benefitsManager = new FactionBenefitsManager();
-            benefitsTask = new FactionBenefitsTask();
-            benefitsTask.register();
+        redisProvider = new RedisProvider(factionManager, factionPlayerManager, config, logger);
 
-            // Register Listeners
-            PluginManager pluginManager = server.getPluginManager();
-            pluginManager.registerEvents(new ChatListener(), this);
-            pluginManager.registerEvents(new ChunkProtectionListener(this), this);
-            pluginManager.registerEvents(new ClanEventListener(), this);
-            pluginManager.registerEvents(new FactionFriendlyFireListener(), this);
-            pluginManager.registerEvents(new InventoryClickListener(), this);
-            pluginManager.registerEvents(new PlayerJoinListener(factionPlayerManager), this);
-            pluginManager.registerEvents(new PlayerKillListener(), this);
-            pluginManager.registerEvents(new PlayerMoveListener(), this);
-            pluginManager.registerEvents(new PlayerQuitListener(factionPlayerManager), this);
-            pluginManager.registerEvents(new PlayerTeleportListener(), this);
-            pluginManager.registerEvents(new MenuListener(), this);
-            pluginManager.registerEvents(dynmapIntegration, this);
-            pluginManager.registerEvents(new FactionBenefitsListener(), this);
-        
-            // Initialize the claims menu listener
-            claimsMenuListener = new FactionsClaimsMenuListener(this);
+        api = new MineClansAPI(factionManager, factionPlayerManager, mySQLProvider, redisProvider);
 
-            // Register Commands
-            factionsCommand = new FactionsCommand();
-            factionsCommand.register(this);
+        clanEventManager = new ClanEventManager(this);
+        clanEventScheduler = new ClanEventScheduler(config.getInt("events.interval"),
+                config.getInt("events.time-limit"));
+        leaderboardManager = new LeaderboardManager(mySQLProvider.getScoreDAO());
+        scoreManager = new ScoreManager(mySQLProvider.getScoreDAO(), leaderboardManager);
+        buffManager = new BuffManager(config);
+        bungeeUtil = new BungeeUtil(this);
+        teleportScheduler = new TeleportScheduler(this);
+        claimedChunks = new ClaimedChunks(mySQLProvider.getClaimedChunksDAO());
+        factionLifecycleService = new FactionLifecycleService(databaseExecutor, mySQLProvider, factionManager,
+                factionPlayerManager, redisProvider, claimedChunks, leaderboardManager);
+        benefitsManager = new FactionBenefitsManager();
+        benefitsTask = new FactionBenefitsTask();
+        benefitsTask.register();
 
-            // Register the placeholder
-            if (pluginManager.getPlugin("PlaceholderAPI") != null) {
-                runSync(() -> {
-                    new FactionsPlaceholder(this).register();
-                    new MineClansPlaceholder(this).register();
-                });
+        PluginManager pluginManager = server.getPluginManager();
+        pluginManager.registerEvents(new ChatListener(), this);
+        pluginManager.registerEvents(new ChunkProtectionListener(this), this);
+        pluginManager.registerEvents(new ClanEventListener(), this);
+        pluginManager.registerEvents(new FactionFriendlyFireListener(), this);
+        pluginManager.registerEvents(new InventoryClickListener(), this);
+        pluginManager.registerEvents(new PlayerJoinListener(factionPlayerManager), this);
+        pluginManager.registerEvents(new PlayerKillListener(), this);
+        pluginManager.registerEvents(new PlayerMoveListener(), this);
+        pluginManager.registerEvents(new PlayerQuitListener(factionPlayerManager), this);
+        pluginManager.registerEvents(new PlayerTeleportListener(), this);
+        pluginManager.registerEvents(new MenuListener(), this);
+        pluginManager.registerEvents(dynmapIntegration, this);
+        pluginManager.registerEvents(new FactionBenefitsListener(), this);
+
+        claimsMenuListener = new FactionsClaimsMenuListener(this);
+
+        factionsCommand = new FactionsCommand();
+        factionsCommand.register(this);
+
+        if (pluginManager.getPlugin("PlaceholderAPI") != null) {
+            runSync(() -> {
+                new FactionsPlaceholder(this).register();
+                new MineClansPlaceholder(this).register();
+            });
+        }
+
+        BuffExpireTask buffExpireTask = new BuffExpireTask();
+        buffExpireTask.register();
+        ClaimedChunksParticleTask.start(20L);
+        PowerTask.start();
+
+        if (server.getPluginManager().getPlugin("Vault") != null) {
+            if (!setupEconomy()) {
+                logger.severe("Vault economy setup failed, using fallback.");
             }
-
-            // Register tasks
-            BuffExpireTask buffExpireTask = new BuffExpireTask();
-            buffExpireTask.register();
-            ClaimedChunksParticleTask.start(20L);
-            PowerTask.start();
-
-            // Attempt to hook Vault
-            if (server.getPluginManager().getPlugin("Vault") != null) {
-                if (!setupEconomy()) {
-                    logger.severe("Vault economy setup failed, using fallback.");
-                }
-            } else {
-                logger.info("Vault not found, using fallback economy.");
-            }
-        });
+        } else {
+            logger.info("Vault not found, using fallback economy.");
+        }
     }
 
     @Override
     public void onDisable() {
         HandlerList.unregisterAll(this);
 
-        if (dynmapIntegration != null) {
-            dynmapIntegration.cleanup();
+        if (redisProvider != null) {
+            redisProvider.shutdown();
         }
 
-        if (factionsCommand != null) {
-            factionsCommand.unregisterBukkitCommand();
+        if (databaseExecutor != null) {
+            databaseExecutor.shutdown();
         }
 
         if (mySQLProvider != null) {
             mySQLProvider.close();
         }
 
-        if (redisProvider != null) {
-            redisProvider.shutdown();
-        }
-
         if (bungeeUtil != null) {
             bungeeUtil.shutdown();
         }
-        
-        protocolLibHook.cleanup();
+
+        if (protocolLibHook != null) {
+            protocolLibHook.cleanup();
+        }
 
         for (Player player : getServer().getOnlinePlayers()) {
             InventoryView view = player.getOpenInventory();
@@ -376,6 +437,10 @@ public class MineClans extends JavaPlugin {
 
     public FactionBenefitsTask getFactionBenefitsTask() {
         return benefitsTask;
+    }
+
+    public FactionLifecycleService getFactionLifecycleService() {
+        return factionLifecycleService;
     }
 
     public double getPowerMultiplier(Player player) {

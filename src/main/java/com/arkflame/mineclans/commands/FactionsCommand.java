@@ -170,6 +170,12 @@ public class FactionsCommand extends ModernCommand {
                 case "rally":
                     FactionsRallyCommand.onCommand(player, args);
                     break;
+                case "nearby":
+                    FactionsNearbyCommand.onCommand(player, args);
+                    break;
+                case "delete":
+                    FactionsDeleteCommand.onCommand(player, args);
+                    break;
                 default:
                     FactionsHelpCommand.onCommand(sender, 1);
                     break;

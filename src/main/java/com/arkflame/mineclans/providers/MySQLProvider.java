@@ -1,7 +1,7 @@
 package com.arkflame.mineclans.providers;
 
-import java.io.File;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,6 +14,7 @@ import com.arkflame.mineclans.MineClans;
 import com.arkflame.mineclans.providers.daos.mysql.ChestDAO;
 import com.arkflame.mineclans.providers.daos.mysql.ClaimedChunksDAO;
 import com.arkflame.mineclans.providers.daos.mysql.FactionDAO;
+import com.arkflame.mineclans.providers.daos.mysql.FactionJoinHistoryDAO;
 import com.arkflame.mineclans.providers.daos.mysql.FactionPlayerDAO;
 import com.arkflame.mineclans.providers.daos.mysql.InvitedDAO;
 import com.arkflame.mineclans.providers.daos.mysql.MemberDAO;
@@ -37,12 +38,24 @@ public class MySQLProvider {
     private RelationsDAO relationsDAO;
     private ScoreDAO scoreDAO;
     private ClaimedChunksDAO claimedChunksDAO;
+    private FactionJoinHistoryDAO factionJoinHistoryDAO;
 
     private boolean connected = false;
+    private final DatabaseExecutor databaseExecutor;
+    private final Logger logger;
 
-    public MySQLProvider(boolean enabled, String url, String username, String password) {
-        Logger logger = MineClans.getInstance().getLogger();
+    public MySQLProvider(boolean enabled, String url, String username, String password, DatabaseExecutor databaseExecutor, Logger logger) {
+        this.databaseExecutor = databaseExecutor;
+        this.logger = logger;
         try {
+            if (!enabled) {
+                throw new DatabaseException("Initialization", "MineClans requires MySQL-compatible storage but mysql.enabled is false");
+            }
+
+            if (url == null || !url.startsWith("jdbc:mysql:")) {
+                throw new DatabaseException("Initialization", "MineClans requires MySQL-compatible JDBC URL (jdbc:mysql:...). SQLite is not supported.");
+            }
+
             MineClans.getInstance().getLogger().info("Using MySQL database for factions.");
 
             chestDAO = new ChestDAO(this);
@@ -54,12 +67,14 @@ public class MySQLProvider {
             relationsDAO = new RelationsDAO(this);
             scoreDAO = new ScoreDAO(this);
             claimedChunksDAO = new ClaimedChunksDAO(this);
+            factionJoinHistoryDAO = new FactionJoinHistoryDAO(this);
 
-            // Generate hikari config
             generateHikariConfig(url, username, password);
 
-            // Initialize
             initialize();
+        } catch (DatabaseException e) {
+            logger.severe(e.getMessage());
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             logger.severe("An error occurred while connecting to the database.");
@@ -90,7 +105,7 @@ public class MySQLProvider {
         config.setPassword(password);
         config.setMaximumPoolSize(10);
         config.setMinimumIdle(5);
-        config.setConnectionTestQuery("SELECT 1"); // Example query for connection testing
+        config.setConnectionTestQuery("SELECT 1");
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
@@ -133,6 +148,9 @@ public class MySQLProvider {
     }
 
     public void createTables() {
+        DatabaseMigrationRunner runner = new DatabaseMigrationRunner(this, logger);
+        runner.runMigrations();
+
         chestDAO.createTable();
         memberDAO.createTable();
         factionDAO.createTable();
@@ -147,33 +165,44 @@ public class MySQLProvider {
     public void initialize() {
         try {
             this.dataSource = new HikariDataSource(config);
+
+            try (Connection conn = dataSource.getConnection()) {
+                DatabaseMetaData metaData = conn.getMetaData();
+                String productName = metaData.getDatabaseProductName();
+                String productVersion = metaData.getDatabaseProductVersion();
+                logger.info("Database product: " + productName + " " + productVersion);
+
+                productName = productName.toLowerCase();
+                if (!productName.contains("mysql") && !productName.contains("mariadb") && !productName.contains("tidb")) {
+                    throw new DatabaseException("Initialization", "Unsupported database product: " + productName + ". Only MySQL, MariaDB, and TiDB are supported.");
+                }
+            }
+
             createTables();
             this.connected = true;
+        } catch (DatabaseException e) {
+            throw e;
         } catch (Exception e) {
             MineClans.getInstance().getLogger().info("Failed to initialize database connection: " + e.getMessage());
-            this.dataSource = null; // Ensure dataSource is null to avoid any further usage attempts
+            this.dataSource = null;
         }
     }
 
-    public void executeUpdateQuery(String query, Object... params) {
+    public int executeUpdateQuery(String query, Object... params) {
         if (Bukkit.isPrimaryThread()) {
             MineClans.getInstance().getLogger()
                     .severe("WARNING: This method should not be called from the main thread.");
             new Exception().printStackTrace();
         }
         if (dataSource == null) {
-            return;
+            throw new DatabaseException("executeUpdateQuery", "Data source is null");
         }
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement statement = connection.prepareStatement(query)) {
-            // Set parameters
-            for (int i = 0; i < params.length; i++) {
-                statement.setObject(i + 1, params[i] instanceof UUID ? params[i].toString() : params[i]);
-            }
-            // Execute query
-            statement.executeUpdate();
+            SqlParameterBinder.bind(statement, query, params);
+            return statement.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new DatabaseException("executeUpdateQuery", "SQL error: " + e.getMessage(), e);
         }
     }
 
@@ -186,24 +215,77 @@ public class MySQLProvider {
         if (dataSource == null) {
             return;
         }
-        try {
-            try (Connection connection = dataSource.getConnection();
-                    PreparedStatement statement = connection.prepareStatement(query);) {
-                // Set parameters
-                for (int i = 0; i < params.length; i++) {
-                    statement.setObject(i + 1, params[i] instanceof UUID ? params[i].toString() : params[i]);
-                }
-                // Execute query and return result set
-                try (ResultSet result = statement.executeQuery()) {
-                    task.run(result);
-                }
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(query)) {
+            SqlParameterBinder.bind(statement, query, params);
+            try (ResultSet result = statement.executeQuery()) {
+                task.run(result);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new DatabaseException("executeSelectQuery", "SQL error: " + e.getMessage(), e);
+        }
+    }
+
+    public Connection getConnection() throws SQLException {
+        if (dataSource == null) {
+            throw new SQLException("Data source is null");
+        }
+        return dataSource.getConnection();
+    }
+
+    public int executeUpdate(Connection connection, String operation, String sql, Object... params) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            SqlParameterBinder.bind(statement, sql, params);
+            return statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException(operation, "SQL error: " + e.getMessage(), e);
+        }
+    }
+
+    public <T> T executeQuery(Connection connection, String operation, String sql, ResultSetMapper<T> mapper, Object... params) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            SqlParameterBinder.bind(statement, sql, params);
+            try (ResultSet result = statement.executeQuery()) {
+                return mapper.map(result);
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException(operation, "SQL error: " + e.getMessage(), e);
+        }
+    }
+
+    public <T> T withTransaction(DatabaseTransaction<T> transaction) {
+        try (Connection connection = getConnection()) {
+            boolean originalAutoCommit = connection.getAutoCommit();
+            try {
+                connection.setAutoCommit(false);
+                T result = transaction.execute(connection);
+                connection.commit();
+                return result;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new DatabaseException("withTransaction", "Transaction failed: " + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(originalAutoCommit);
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("withTransaction", "Failed to get connection: " + e.getMessage(), e);
         }
     }
 
     public ClaimedChunksDAO getClaimedChunksDAO() {
         return claimedChunksDAO;
+    }
+
+    public FactionJoinHistoryDAO getFactionJoinHistoryDAO() {
+        return factionJoinHistoryDAO;
+    }
+
+    public DatabaseExecutor getDatabaseExecutor() {
+        return databaseExecutor;
+    }
+
+    @FunctionalInterface
+    public interface ResultSetMapper<T> {
+        T map(ResultSet resultSet) throws SQLException;
     }
 }

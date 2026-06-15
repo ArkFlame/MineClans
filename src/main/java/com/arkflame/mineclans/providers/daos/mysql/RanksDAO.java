@@ -16,13 +16,16 @@ public class RanksDAO {
             "player_id VARCHAR(36) PRIMARY KEY," +
             "player_rank VARCHAR(255) NOT NULL)";
 
-    protected String INSERT_OR_UPDATE_RANK_QUERY = "INSERT INTO mineclans_ranks (player_id, player_rank) VALUES (?, ?) "
-            +
+    protected String INSERT_OR_UPDATE_RANK_QUERY = "INSERT INTO mineclans_ranks (player_id, player_rank) VALUES (?, ?) " +
             "ON DUPLICATE KEY UPDATE player_rank = VALUES(player_rank)";
 
     protected String SELECT_RANK_BY_PLAYER_ID_QUERY = "SELECT player_rank FROM mineclans_ranks WHERE player_id = ?";
 
     protected String SELECT_ALL_RANKS_QUERY = "SELECT player_id, player_rank FROM mineclans_ranks";
+
+    protected String DELETE_RANK_BY_PLAYER_ID_QUERY = "DELETE FROM mineclans_ranks WHERE player_id = ?";
+
+    protected String DELETE_RANKS_BY_FACTION_QUERY = "DELETE FROM mineclans_ranks WHERE player_id IN (SELECT member_id FROM mineclans_members WHERE faction_id = ?)";
 
     private MySQLProvider mySQLProvider;
 
@@ -65,12 +68,19 @@ public class RanksDAO {
                             Rank rank = Rank.valueOf(rankStr);
                             ranks.put(playerId, rank);
                         } catch (IllegalArgumentException ex) {
-                            // Skip invalid rank
                         }
                     }
                 }
             }
         });
         return ranks;
+    }
+
+    public void deleteRank(UUID playerId) {
+        mySQLProvider.executeUpdateQuery(DELETE_RANK_BY_PLAYER_ID_QUERY, playerId.toString());
+    }
+
+    public void deleteRanksByFaction(UUID factionId) {
+        mySQLProvider.executeUpdateQuery(DELETE_RANKS_BY_FACTION_QUERY, factionId.toString());
     }
 }

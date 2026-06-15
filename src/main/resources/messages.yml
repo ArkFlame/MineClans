@@ -61,6 +61,13 @@ factions:
     no_faction: "%prefix%&cYou are not in a faction."
     no_rank: "%prefix%&cYou need a higher rank to use rally."
     in_cooldown: "%prefix%&cWait before rallying again."
+  nearby:
+    header: "&6Nearby Players (within {radius} chunk(s))"
+    faction_header: "&e&l%faction%"
+    player_entry: "&7  - &f%player% &7(&e%distance% blocks&7)"
+    no_faction: "&7No Faction"
+    no_players: "&7No players found nearby."
+    error: "&cAn error occurred while checking nearby players."
   fly:
     not_in_faction: "&cYou must be in a faction to use fly!"
     no_permission: "&cYou don't have permission to use faction fly!"
@@ -401,6 +408,7 @@ factions:
     invalid_claim_number: "&cInvalid claim number. You have {max} claim(s)."
     invalid_number: "&cPlease enter a valid number."
     invalid_world: "&cThe world for this claim does not exist."
+    enemy_claim: "&cThat claim is in an enemy faction's territory. Teleport denied."
     teleporting: "&aTeleporting to claim #{claim} at &e({x}, {z})&a in {time} seconds..."
     help:
       title: "&6Teleport to Claim"

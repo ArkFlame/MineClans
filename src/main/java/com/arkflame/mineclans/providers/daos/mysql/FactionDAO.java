@@ -14,7 +14,7 @@ import com.arkflame.mineclans.utils.LocationUtil;
 
 public class FactionDAO {
     private final static String TABLE_NAME = "mineclans_factions";
-    
+
     protected String CREATE_FACTIONS_TABLE_QUERY = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " (" +
             "faction_id CHAR(36) PRIMARY KEY," +
             "owner_id CHAR(36) NOT NULL," +
@@ -51,6 +51,8 @@ public class FactionDAO {
             "discord = VALUES(discord)";
 
     protected String DELETE_FACTION_BY_ID_QUERY = "DELETE FROM " + TABLE_NAME + " WHERE faction_id = ?";
+
+    protected String UPDATE_OWNER_QUERY = "UPDATE " + TABLE_NAME + " SET owner_id = ? WHERE faction_id = ?";
 
     protected String SELECT_FACTION_BY_ID_QUERY = "SELECT faction_id, name, owner_id, display_name, home, balance, kills, events_won, friendly_fire, open, creation_date, announcement, discord "
             +
@@ -95,6 +97,10 @@ public class FactionDAO {
         mySQLProvider.executeUpdateQuery(DELETE_FACTION_BY_ID_QUERY, factionId);
     }
 
+    public void updateOwner(UUID factionId, UUID newOwnerId) {
+        mySQLProvider.executeUpdateQuery(UPDATE_OWNER_QUERY, newOwnerId.toString(), factionId.toString());
+    }
+
     public void disbandFaction(Faction faction) {
         mySQLProvider.getMemberDAO().removeMembers(faction.getId());
         mySQLProvider.getInvitedDAO().removeInvitedMembers(faction.getId());
@@ -107,14 +113,11 @@ public class FactionDAO {
             UUID id = UUID.fromString(resultSet.getString("faction_id"));
             UUID ownerId = UUID.fromString(resultSet.getString("owner_id"));
             String displayName = resultSet.getString("display_name");
-            // Fetch additional faction properties
             LocationData home = LocationUtil.parseLocationData(resultSet.getString("home"));
             double balance = resultSet.getDouble("balance");
             int kills = resultSet.getInt("kills");
             boolean friendlyFire = resultSet.getBoolean("friendly_fire");
-            // Name
             String name = resultSet.getString("name");
-            // Events Won
             int eventsWon = resultSet.getInt("events_won");
 
             boolean open = resultSet.getBoolean("open");
@@ -122,7 +125,6 @@ public class FactionDAO {
             String announcement = resultSet.getString("announcement");
             String discord = resultSet.getString("discord");
 
-            // Create a Faction object and set additional properties
             faction.setup(id, ownerId, name, displayName);
             faction.setHome(home);
             faction.setBalance(balance);
@@ -132,22 +134,17 @@ public class FactionDAO {
             faction.setAnnouncement(announcement);
             faction.setDiscord(discord);
 
-            // Load other faction stuff
             faction.setMembers(mySQLProvider.getMemberDAO().getMembers(id));
             faction.setInvited(mySQLProvider.getInvitedDAO().getInvitedMembers(id));
             faction.setRelations(mySQLProvider.getRelationsDAO().getRelationsByFactionId(id));
             faction.setRanks(mySQLProvider.getRanksDAO().getAllRanks());
 
-            // Load Chest
             faction.setChest(mySQLProvider.getChestDAO().loadFactionChest(faction));
 
-            // Load Kills
             faction.setKills(kills);
 
-            // Load Events Won
             faction.setEventsWon(eventsWon);
 
-            // Load Power
             faction.updatePower();
             return true;
         }
