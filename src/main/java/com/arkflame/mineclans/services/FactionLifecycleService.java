@@ -71,13 +71,13 @@ public class FactionLifecycleService {
                     return null;
                 });
 
+                if (redisProvider != null) {
+                    redisProvider.removeFaction(faction.getId());
+                }
+
                 Bukkit.getScheduler().runTask(MineClans.getInstance(), () -> {
-                    factionManager.removeFactionFromDatabase(faction);
-                    factionManager.disbandFaction(faction.getId());
-                    leaderboardManager.removeFaction(faction.getId());
-                    if (redisProvider != null) {
-                        redisProvider.removeFaction(faction.getId());
-                    }
+                    factionManager.removeFactionFromCache(faction);
+                    leaderboardManager.invalidateAfterFactionRemoval();
                 });
 
                 return AdminDeleteResult.success(factionName);
@@ -276,13 +276,13 @@ public class FactionLifecycleService {
                     return null;
                 });
 
+                if (redisProvider != null) {
+                    redisProvider.removeFaction(factionId);
+                }
+
                 Bukkit.getScheduler().runTask(MineClans.getInstance(), () -> {
-                    factionManager.removeFactionFromDatabase(faction);
-                    factionManager.disbandFaction(factionId);
-                    leaderboardManager.removeFaction(factionId);
-                    if (redisProvider != null) {
-                        redisProvider.removeFaction(factionId);
-                    }
+                    factionManager.removeFactionFromCache(faction);
+                    leaderboardManager.invalidateAfterFactionRemoval();
                 });
             } catch (Exception e) {
                 MineClans.getInstance().getLogger().severe("Disband faction failed: " + e.getMessage());

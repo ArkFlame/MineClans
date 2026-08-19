@@ -1,6 +1,7 @@
 package com.arkflame.mineclans.managers;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -88,6 +89,15 @@ public class FactionManager {
         MineClans.getInstance().getMySQLProvider().getScoreDAO().removeFaction(faction.getId());
         MineClans.getInstance().getMySQLProvider().getFactionDAO().disbandFaction(faction);
         faction.disbandFaction();
+    }
+
+    public void removeFactionFromCache(Faction faction) {
+        Objects.requireNonNull(faction, "faction");
+        UUID factionId = Objects.requireNonNull(faction.getId(), "faction.id");
+        String factionName = Objects.requireNonNull(faction.getName(), "faction.name");
+        faction.disbandFaction();
+        factionCacheByName.remove(factionName, faction);
+        factionCacheByID.remove(factionId, faction);
     }
 
     // Create a new faction

@@ -64,10 +64,11 @@ public class LeaderboardManager {
 
     public void removeFaction(UUID factionId) {
         scoreDAO.removeFaction(factionId);
-        Integer position = cacheManagerByFaction.get(factionId);
-        if (position != null) {
-            clearCache();
-        }
+        invalidateAfterFactionRemoval();
+    }
+
+    public void invalidateAfterFactionRemoval() {
+        clearCache();
     }
 
     private void clearCache() {

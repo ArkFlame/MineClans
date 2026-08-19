@@ -4,19 +4,28 @@ import com.arkflame.mineclans.models.FactionPlayer;
 import com.arkflame.mineclans.models.Faction;
 import com.arkflame.mineclans.MineClans;
 import com.arkflame.mineclans.enums.Rank;
+import com.arkflame.mineclans.providers.DatabaseExecutor;
 
 import java.util.Date;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.entity.Player;
 
 public class FactionPlayerManager {
+    private final DatabaseExecutor databaseExecutor;
+
     // Cache for faction players
     private Map<UUID, FactionPlayer> factionPlayerCacheById = new ConcurrentHashMap<>();
     // Cache for faction players
     private Map<String, FactionPlayer> factionPlayerCacheByName = new ConcurrentHashMap<>();
+
+    public FactionPlayerManager(DatabaseExecutor databaseExecutor) {
+        this.databaseExecutor = Objects.requireNonNull(databaseExecutor, "databaseExecutor");
+    }
 
     // Get or load a FactionPlayer by name
     public FactionPlayer getOrLoad(String name) {
@@ -71,6 +80,23 @@ public class FactionPlayerManager {
             return null;
         }
         return getOrLoad(player.getUniqueId());
+    }
+
+    public CompletableFuture<FactionPlayer> preloadAsync(UUID playerId) {
+        Objects.requireNonNull(playerId, "playerId");
+        return databaseExecutor.supply(() -> {
+            FactionPlayer factionPlayer = getOrLoad(playerId);
+            if (factionPlayer == null) {
+                throw new IllegalStateException("FactionPlayer preload returned null for UUID " + playerId);
+            }
+            factionPlayer.getFaction();
+            return factionPlayer;
+        });
+    }
+
+    public CompletableFuture<Void> saveAsync(FactionPlayer factionPlayer) {
+        Objects.requireNonNull(factionPlayer, "factionPlayer");
+        return databaseExecutor.run(() -> save(factionPlayer));
     }
 
     public void save(UUID uuid) {

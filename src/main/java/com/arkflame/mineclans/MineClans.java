@@ -326,7 +326,7 @@ public class MineClans extends JavaPlugin {
         }
 
         factionManager = new FactionManager();
-        factionPlayerManager = new FactionPlayerManager();
+        factionPlayerManager = new FactionPlayerManager(databaseExecutor);
 
         redisProvider = new RedisProvider(factionManager, factionPlayerManager, config, logger);
 

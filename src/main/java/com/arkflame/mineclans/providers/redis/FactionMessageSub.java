@@ -150,9 +150,8 @@ public class FactionMessageSub extends JedisPubSub {
                 factionManager.updateFactionOwner(factionId, newOwnerId);
                 break;
             case "removeFaction":
-                factionManager.disbandFaction(factionId);
-                factionManager.removeFactionFromDatabase(faction);
-                MineClans.getInstance().getLeaderboardManager().removeFaction(faction.getId());
+                factionManager.removeFactionFromCache(faction);
+                MineClans.getInstance().getLeaderboardManager().invalidateAfterFactionRemoval();
                 break;
             case "sendFactionMessage":
                 factionManager.sendFactionMessage(faction, parts[2]);
